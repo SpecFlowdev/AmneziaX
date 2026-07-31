@@ -1,0 +1,135 @@
+syntax = "proto3";
+
+package node.v1;
+
+option go_package = "github.com/SpecFlowdev/AmneziaX/gen/go/node/v1;nodev1";
+
+// NodeControl is the control-plane contract between the panel and a node agent.
+// The agent always dials the panel and keeps a single bidirectional stream open,
+// so nodes only need outbound connectivity and never expose an inbound port.
+service NodeControl {
+  rpc Connect(stream AgentMessage) returns (stream PanelMessage);
+}
+
+message AgentMessage {
+  oneof payload {
+    Hello hello = 1;
+    Heartbeat heartbeat = 2;
+    ApplyResult apply_result = 3;
+    UsageReport usage = 4;
+    LogChunk logs = 5;
+  }
+}
+
+message PanelMessage {
+  oneof payload {
+    HelloAck hello_ack = 1;
+    ApplyConfig apply_config = 2;
+    Command command = 3;
+  }
+}
+
+// ---------------------------------------------------------------- agent -> panel
+
+message Hello {
+  string node_uuid = 1;
+  string token = 2;
+  string agent_version = 3;
+  string xray_version = 4;
+  SystemInfo system = 5;
+  // Hash of the xray config the agent currently runs, empty when nothing applied.
+  string config_hash = 6;
+}
+
+message SystemInfo {
+  string hostname = 1;
+  string os = 2;
+  string arch = 3;
+  string kernel = 4;
+  uint32 cpu_count = 5;
+  string cpu_model = 6;
+  uint64 total_ram_bytes = 7;
+}
+
+message Heartbeat {
+  bool xray_running = 1;
+  int64 xray_started_at_unix = 2;
+  string xray_version = 3;
+  string config_hash = 4;
+  double cpu_usage_percent = 5;
+  uint64 used_ram_bytes = 6;
+  uint64 total_ram_bytes = 7;
+  double load_avg_1 = 8;
+  uint64 inbound_bytes = 9;
+  uint64 outbound_bytes = 10;
+  uint32 online_users = 11;
+  string message = 12;
+}
+
+message ApplyResult {
+  string request_id = 1;
+  bool ok = 2;
+  string error = 3;
+  string config_hash = 4;
+  string xray_version = 5;
+}
+
+message UsageReport {
+  int64 collected_at_unix = 1;
+  repeated UserUsage users = 2;
+  repeated InboundUsage inbounds = 3;
+}
+
+message UserUsage {
+  // Xray stats email, formatted as "<user-uuid>.<username>" by the panel.
+  string email = 1;
+  uint64 uplink_bytes = 2;
+  uint64 downlink_bytes = 3;
+  bool online = 4;
+}
+
+message InboundUsage {
+  string tag = 1;
+  uint64 uplink_bytes = 2;
+  uint64 downlink_bytes = 3;
+}
+
+message LogChunk {
+  string request_id = 1;
+  repeated string lines = 2;
+}
+
+// ---------------------------------------------------------------- panel -> agent
+
+message HelloAck {
+  bool accepted = 1;
+  string error = 2;
+  string node_name = 3;
+  // How often the agent should send a heartbeat.
+  uint32 heartbeat_interval_seconds = 4;
+  // How often the agent should report traffic usage.
+  uint32 usage_interval_seconds = 5;
+}
+
+message ApplyConfig {
+  string request_id = 1;
+  // Full xray-core configuration document, JSON encoded.
+  bytes xray_config = 2;
+  string config_hash = 3;
+  // Restart xray even when the hash did not change.
+  bool force_restart = 4;
+}
+
+message Command {
+  enum Kind {
+    KIND_UNSPECIFIED = 0;
+    KIND_RESTART_XRAY = 1;
+    KIND_STOP_XRAY = 2;
+    KIND_START_XRAY = 3;
+    KIND_FETCH_LOGS = 4;
+    KIND_PING = 5;
+  }
+  string request_id = 1;
+  Kind kind = 2;
+  uint32 log_lines = 3;
+}

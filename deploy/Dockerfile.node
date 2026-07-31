@@ -1,0 +1,35 @@
+FROM golang:1.24-alpine AS build
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+ARG VERSION=dev
+ARG COMMIT=unknown
+RUN CGO_ENABLED=0 go build -trimpath \
+    -ldflags "-s -w -X github.com/SpecFlowdev/AmneziaX/internal/version.Version=${VERSION} -X github.com/SpecFlowdev/AmneziaX/internal/version.Commit=${COMMIT}" \
+    -o /out/amneziax-node ./cmd/node
+
+FROM alpine:3.20
+ARG XRAY_VERSION=v25.1.30
+RUN apk add --no-cache ca-certificates tzdata curl unzip \
+ && ARCH="$(uname -m)" \
+ && case "$ARCH" in \
+      x86_64) XRAY_ASSET=Xray-linux-64.zip ;; \
+      aarch64) XRAY_ASSET=Xray-linux-arm64-v8a.zip ;; \
+      *) echo "unsupported architecture: $ARCH" >&2; exit 1 ;; \
+    esac \
+ && curl -fsSL -o /tmp/xray.zip \
+      "https://github.com/XTLS/Xray-core/releases/download/${XRAY_VERSION}/${XRAY_ASSET}" \
+ && unzip -o /tmp/xray.zip -d /tmp/xray \
+ && install -m 0755 /tmp/xray/xray /usr/local/bin/xray \
+ && install -m 0644 /tmp/xray/geoip.dat /tmp/xray/geosite.dat /usr/local/share/xray/ 2>/dev/null \
+    || (mkdir -p /usr/local/share/xray && install -m 0644 /tmp/xray/geoip.dat /tmp/xray/geosite.dat /usr/local/share/xray/) \
+ && rm -rf /tmp/xray /tmp/xray.zip \
+ && apk del curl unzip
+
+COPY --from=build /out/amneziax-node /usr/local/bin/amneziax-node
+ENV XRAY_BINARY=/usr/local/bin/xray \
+    XRAY_WORKDIR=/var/lib/amneziax-node \
+    XRAY_LOCATION_ASSET=/usr/local/share/xray
+RUN mkdir -p /var/lib/amneziax-node
+ENTRYPOINT ["/usr/local/bin/amneziax-node"]

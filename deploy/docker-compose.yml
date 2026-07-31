@@ -1,0 +1,53 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-amneziax}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-amneziax}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-amneziax} -d ${POSTGRES_DB:-amneziax}']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [amneziax]
+
+  panel:
+    image: ${PANEL_IMAGE:-ghcr.io/specflowdev/amneziax-panel:latest}
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.panel
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-amneziax}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-amneziax}?sslmode=disable
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      PANEL_HTTP_ADDR: ':8080'
+      PANEL_GRPC_ADDR: ':9090'
+      PANEL_PUBLIC_URL: ${PANEL_PUBLIC_URL:-http://localhost:8080}
+      SUBSCRIPTION_PUBLIC_URL: ${SUBSCRIPTION_PUBLIC_URL:-}
+      PANEL_GRPC_PUBLIC_HOST: ${PANEL_GRPC_PUBLIC_HOST:-}
+      PANEL_GRPC_PUBLIC_PORT: ${PANEL_GRPC_PUBLIC_PORT:-9090}
+      PANEL_ADMIN_USERNAME: ${PANEL_ADMIN_USERNAME:-admin}
+      PANEL_ADMIN_PASSWORD: ${PANEL_ADMIN_PASSWORD:-}
+      SUBSCRIPTION_TITLE: ${SUBSCRIPTION_TITLE:-AmneziaX}
+      SUBSCRIPTION_SUPPORT_URL: ${SUBSCRIPTION_SUPPORT_URL:-}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      # The web UI and API. Put a TLS terminator in front of this in production.
+      - '${PANEL_HTTP_PORT:-8080}:8080'
+      # Node agents dial this port.
+      - '${PANEL_GRPC_PORT:-9090}:9090'
+    networks: [amneziax]
+
+volumes:
+  postgres-data:
+
+networks:
+  amneziax:
+    driver: bridge
