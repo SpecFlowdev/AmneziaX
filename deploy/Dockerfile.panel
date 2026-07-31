@@ -1,0 +1,27 @@
+# The UI is compiled first so the Go build can embed it into the binary.
+FROM node:22-alpine AS ui
+WORKDIR /ui
+COPY frontend/package.json frontend/package-lock.json* ./
+RUN npm ci --no-audit --no-fund || npm install --no-audit --no-fund
+COPY frontend/ ./
+RUN npm run build -- --outDir /ui/dist --emptyOutDir
+
+FROM golang:1.24-alpine AS build
+WORKDIR /src
+RUN apk add --no-cache git
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+COPY --from=ui /ui/dist ./internal/webui/dist
+ARG VERSION=dev
+ARG COMMIT=unknown
+RUN CGO_ENABLED=0 go build -trimpath \
+    -ldflags "-s -w -X github.com/SpecFlowdev/AmneziaX/internal/version.Version=${VERSION} -X github.com/SpecFlowdev/AmneziaX/internal/version.Commit=${COMMIT}" \
+    -o /out/amneziax-panel ./cmd/panel
+
+FROM alpine:3.20
+RUN apk add --no-cache ca-certificates tzdata && adduser -D -u 10001 amneziax
+COPY --from=build /out/amneziax-panel /usr/local/bin/amneziax-panel
+USER amneziax
+EXPOSE 8080 9090
+ENTRYPOINT ["/usr/local/bin/amneziax-panel"]

@@ -1,0 +1,8 @@
+bin/
+node_modules/
+.env
+*.log
+
+# internal/webui/dist is deliberately committed: the panel embeds it, so a plain
+# `go build` of a fresh clone must produce a binary with a working web UI.
+frontend/tsconfig.tsbuildinfo
