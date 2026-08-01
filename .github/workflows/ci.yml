@@ -63,6 +63,27 @@ jobs:
             exit 1
           fi
 
+  # The release workflow is the only other thing that builds this image, and it
+  # runs on a tag — so a broken Dockerfile would surface after the version is
+  # already cut. Build it here on every push instead. One architecture is
+  # enough to catch that: the point is that the file still builds, and the
+  # cross-compilation setup means arm64 takes the same path with a different
+  # GOARCH rather than a different toolchain.
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build the panel image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/Dockerfile.panel
+          platforms: linux/amd64
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
   scripts:
     runs-on: ubuntu-latest
     steps:

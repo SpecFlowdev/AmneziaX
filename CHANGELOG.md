@@ -26,6 +26,12 @@ that follows the stable channel.
 
 ### Fixed
 
+- The panel image took hours to build. Neither build stage was pinned to the
+  build machine, so `buildx --platform linux/arm64` ran npm, Vite and every Go
+  compile under QEMU emulation. Both stages are native now and Go
+  cross-compiles to `$TARGETARCH`, which is what it is good at. CI builds the
+  image on every push so a broken Dockerfile surfaces before a version is cut,
+  not two hours into a release.
 - `?format=json` was accepted and then quietly answered with base64: the format
   was declared valid but the renderer had no case for it.
 - `/sub/<uuid>/json` returned the same account summary as `/sub/<uuid>/info`
