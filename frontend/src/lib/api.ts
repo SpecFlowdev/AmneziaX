@@ -145,6 +145,14 @@ export interface Node {
   lastStatusChangeAt: string | null
   lastConnectedAt: string | null
   viewPosition: number
+  provider: string
+  providerUrl: string
+  costAmount: number
+  costCurrency: string
+  billingCycle: BillingCycle
+  nextPaymentAt: string | null
+  billingNotes: string
+  tags: string[]
   createdAt: string
   updatedAt: string
 }
@@ -215,6 +223,58 @@ export interface User {
   squads?: { uuid: string; name: string }[]
   createdAt: string
   updatedAt: string
+}
+
+export interface Settings {
+  brandName: string
+  brandTagline: string
+  brandLogo: string
+  brandAccent: string
+  subscriptionTitle: string
+  supportUrl: string
+  currency: string
+  updatedAt?: string
+}
+
+export type BillingCycle = 'NONE' | 'MONTHLY' | 'QUARTERLY' | 'YEARLY'
+
+export interface SpendSummary {
+  currency: string
+  monthlyTotal: number
+  yearlyTotal: number
+  billedNodes: number
+  costPerTb: number
+  trafficThisMonthTb: number
+  overdue: number
+  byProvider: { provider: string; nodes: number; monthly: number }[]
+  upcoming: {
+    nodeUuid: string
+    nodeName: string
+    provider: string
+    amount: number
+    currency: string
+    dueAt: string
+    daysLeft: number
+  }[]
+}
+
+export interface Device {
+  userUuid: string
+  hwid: string
+  userAgent: string
+  platform: string
+  firstSeen: string
+  lastSeen: string
+}
+
+export interface ApiToken {
+  uuid: string
+  name: string
+  tokenPreview: string
+  createdBy: string
+  lastUsedAt: string | null
+  expiresAt: string | null
+  createdAt: string
 }
 
 export interface Overview {

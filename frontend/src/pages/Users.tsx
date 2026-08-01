@@ -16,7 +16,7 @@ import {
   useAction,
 } from '../components/ui'
 import { useI18n } from '../i18n'
-import { api, type ResetStrategy, type Squad, type User, type UserStatus } from '../lib/api'
+import { api, type Device, type ResetStrategy, type Squad, type User, type UserStatus } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import {
   bytes,
@@ -507,6 +507,14 @@ function UserEditor({
             onChange={(e) => set('telegramId', e.target.value.replace(/[^\d-]/g, ''))}
           />
         </Field>
+        <Field label={t.users.deviceLimit} hint={t.common.unlimited + ': 0'}>
+          <input
+            type="number"
+            min="0"
+            value={draft.hwidDeviceLimit}
+            onChange={(e) => set('hwidDeviceLimit', e.target.value)}
+          />
+        </Field>
       </div>
 
       <Field label={t.common.description}>
@@ -548,6 +556,7 @@ function UserDetail({
     `/api/users/${current.uuid}/links`,
   )
   const usage = useFetch<{ at: string; bytes: number }[]>(`/api/users/${current.uuid}/usage?days=30`)
+  const devices = useFetch<Device[]>(`/api/users/${current.uuid}/devices`)
 
   const [qr, setQr] = useState<string | null>(null)
   useEffect(() => {
@@ -701,6 +710,69 @@ function UserDetail({
               style={{ borderRadius: 10, background: '#fff', padding: 6 }}
             />
             <span className="small dim">{t.users.scanQr}</span>
+          </div>
+        )}
+      </div>
+
+      <div className="card card-pad stack" style={{ gap: 10 }}>
+        <div className="split">
+          <span className="small dim">{t.devices.title}</span>
+          <div style={{ flex: 1 }} />
+          <span className="small dim">
+            {(devices.data ?? []).length}
+            {current.hwidDeviceLimit > 0 ? ` / ${current.hwidDeviceLimit}` : ''}
+          </span>
+          {canWrite && (devices.data ?? []).length > 0 && (
+            <button
+              className="btn-sm btn-ghost"
+              onClick={() =>
+                void run(async () => {
+                  await api.del(`/api/users/${current.uuid}/devices`)
+                  await devices.reload()
+                })
+              }
+            >
+              {t.devices.reset}
+            </button>
+          )}
+        </div>
+        {(devices.data ?? []).length === 0 ? (
+          <span className="small dim">{t.devices.none}</span>
+        ) : (
+          <div className="table-wrap">
+            <table>
+              <tbody>
+                {(devices.data ?? []).map((d) => (
+                  <tr key={d.hwid}>
+                    <td>
+                      <div className="stack">
+                        <span className="mono small">{d.hwid.slice(0, 24)}</span>
+                        <span className="small dim truncate">{d.platform || d.userAgent}</span>
+                      </div>
+                    </td>
+                    <td className="right small dim nowrap">{relative(d.lastSeen, lang)}</td>
+                    {canWrite && (
+                      <td style={{ width: 1 }}>
+                        <button
+                          className="btn-sm btn-ghost btn-icon btn-danger"
+                          title={t.devices.forget}
+                          onClick={() =>
+                            void run(async () => {
+                              await api.del(
+                                `/api/users/${current.uuid}/devices/${encodeURIComponent(d.hwid)}`,
+                              )
+                              await devices.reload()
+                            })
+                          }
+                        >
+                          <Icon name="trash" size={14} />
+                        </button>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>

@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
-import { BrandMark, Icon } from '../components/icons'
+import { Icon } from '../components/icons'
+import { Brand } from '../components/Brand'
 import { Field, Spinner } from '../components/ui'
 import { useI18n, type Lang } from '../i18n'
 import { useAuth } from '../lib/auth'
@@ -54,15 +55,7 @@ export function Login() {
         </div>
 
         <form className="card auth-card" onSubmit={submit}>
-          <div className="split">
-            <div className="brand-mark">
-              <BrandMark size={19} />
-            </div>
-            <div className="stack">
-              <span className="brand-name">{t.common.appName}</span>
-              <span className="brand-sub">{t.common.tagline}</span>
-            </div>
-          </div>
+          <Brand />
 
           <div className="stack">
             <h2 style={{ fontSize: 20 }}>{t.login.title}</h2>

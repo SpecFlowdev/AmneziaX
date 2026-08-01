@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	nodev1 "github.com/SpecFlowdev/AmneziaX/gen/go/node/v1"
 	"github.com/SpecFlowdev/AmneziaX/internal/auth"
@@ -25,6 +26,15 @@ type nodeRequest struct {
 	TrafficReset      domain.TrafficResetStrategy `json:"trafficResetStrategy"`
 	NotifyPercent     int                         `json:"notifyPercent"`
 	ViewPosition      int                         `json:"viewPosition"`
+
+	Provider      string              `json:"provider"`
+	ProviderURL   string              `json:"providerUrl"`
+	CostAmount    float64             `json:"costAmount"`
+	CostCurrency  string              `json:"costCurrency"`
+	BillingCycle  domain.BillingCycle `json:"billingCycle"`
+	NextPaymentAt *time.Time          `json:"nextPaymentAt"`
+	BillingNotes  string              `json:"billingNotes"`
+	Tags          []string            `json:"tags"`
 }
 
 func (r nodeRequest) toInput() (postgres.NodeInput, error) {
@@ -47,6 +57,15 @@ func (r nodeRequest) toInput() (postgres.NodeInput, error) {
 	if r.ConfigProfileID != nil && strings.TrimSpace(*r.ConfigProfileID) == "" {
 		r.ConfigProfileID = nil
 	}
+	if !r.BillingCycle.Valid() {
+		r.BillingCycle = domain.BillingNone
+	}
+	if r.CostAmount < 0 {
+		return postgres.NodeInput{}, fmt.Errorf("the cost cannot be negative")
+	}
+	if r.Tags == nil {
+		r.Tags = []string{}
+	}
 	return postgres.NodeInput{
 		Name:              name,
 		Address:           strings.TrimSpace(r.Address),
@@ -60,6 +79,14 @@ func (r nodeRequest) toInput() (postgres.NodeInput, error) {
 		TrafficReset:      r.TrafficReset,
 		NotifyPercent:     r.NotifyPercent,
 		ViewPosition:      r.ViewPosition,
+		Provider:          strings.TrimSpace(r.Provider),
+		ProviderURL:       strings.TrimSpace(r.ProviderURL),
+		CostAmount:        r.CostAmount,
+		CostCurrency:      strings.ToUpper(strings.TrimSpace(r.CostCurrency)),
+		BillingCycle:      r.BillingCycle,
+		NextPaymentAt:     r.NextPaymentAt,
+		BillingNotes:      r.BillingNotes,
+		Tags:              r.Tags,
 	}, nil
 }
 

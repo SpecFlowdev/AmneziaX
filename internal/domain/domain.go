@@ -63,6 +63,88 @@ type ConfigProfileInbound struct {
 	Port            int    `json:"port"`
 }
 
+// Settings holds the panel-wide knobs an operator can change at runtime,
+// including white-label branding for corporate deployments.
+type Settings struct {
+	BrandName         string    `json:"brandName"`
+	BrandTagline      string    `json:"brandTagline"`
+	BrandLogo         string    `json:"brandLogo"`
+	BrandAccent       string    `json:"brandAccent"`
+	SubscriptionTitle string    `json:"subscriptionTitle"`
+	SupportURL        string    `json:"supportUrl"`
+	Currency          string    `json:"currency"`
+	UpdatedAt         time.Time `json:"updatedAt"`
+}
+
+// BillingCycle is how often a node has to be paid for.
+type BillingCycle string
+
+const (
+	BillingNone      BillingCycle = "NONE"
+	BillingMonthly   BillingCycle = "MONTHLY"
+	BillingQuarterly BillingCycle = "QUARTERLY"
+	BillingYearly    BillingCycle = "YEARLY"
+)
+
+func (c BillingCycle) Valid() bool {
+	switch c {
+	case BillingNone, BillingMonthly, BillingQuarterly, BillingYearly:
+		return true
+	}
+	return false
+}
+
+// MonthlyCost normalises a billing cycle onto a monthly figure so nodes on
+// different cycles can be summed.
+func (c BillingCycle) MonthlyCost(amount float64) float64 {
+	switch c {
+	case BillingMonthly:
+		return amount
+	case BillingQuarterly:
+		return amount / 3
+	case BillingYearly:
+		return amount / 12
+	default:
+		return 0
+	}
+}
+
+// Advance returns the next payment date one cycle after the given one.
+func (c BillingCycle) Advance(from time.Time) time.Time {
+	switch c {
+	case BillingMonthly:
+		return from.AddDate(0, 1, 0)
+	case BillingQuarterly:
+		return from.AddDate(0, 3, 0)
+	case BillingYearly:
+		return from.AddDate(1, 0, 0)
+	default:
+		return from
+	}
+}
+
+// Device is one client seen on a user's subscription.
+type Device struct {
+	UserID    string    `json:"userUuid"`
+	HWID      string    `json:"hwid"`
+	UserAgent string    `json:"userAgent"`
+	Platform  string    `json:"platform"`
+	FirstSeen time.Time `json:"firstSeen"`
+	LastSeen  time.Time `json:"lastSeen"`
+}
+
+// APIToken authenticates an external integration against the panel API.
+type APIToken struct {
+	UUID       string     `json:"uuid"`
+	Name       string     `json:"name"`
+	TokenHash  string     `json:"-"`
+	Preview    string     `json:"tokenPreview"`
+	CreatedBy  string     `json:"createdBy"`
+	LastUsedAt *time.Time `json:"lastUsedAt"`
+	ExpiresAt  *time.Time `json:"expiresAt"`
+	CreatedAt  time.Time  `json:"createdAt"`
+}
+
 type NodeHealth string
 
 const (
@@ -135,6 +217,16 @@ type Node struct {
 	UsedRAMBytes  int64   `json:"usedRamBytes"`
 	LoadAvg1      float64 `json:"loadAvg1"`
 	OnlineUsers   int     `json:"onlineUsers"`
+
+	// Infrastructure billing: what this node costs and who it is rented from.
+	Provider      string       `json:"provider"`
+	ProviderURL   string       `json:"providerUrl"`
+	CostAmount    float64      `json:"costAmount"`
+	CostCurrency  string       `json:"costCurrency"`
+	BillingCycle  BillingCycle `json:"billingCycle"`
+	NextPaymentAt *time.Time   `json:"nextPaymentAt"`
+	BillingNotes  string       `json:"billingNotes"`
+	Tags          []string     `json:"tags"`
 
 	StatusMessage   string     `json:"statusMessage"`
 	LastStatusAt    *time.Time `json:"lastStatusChangeAt"`
@@ -288,6 +380,9 @@ const (
 	EventAdminLogin       EventKind = "ADMIN_LOGIN"
 	EventAdminLoginFailed EventKind = "ADMIN_LOGIN_FAILED"
 	EventProfileUpdated   EventKind = "PROFILE_UPDATED"
+	EventNodePaymentDue   EventKind = "NODE_PAYMENT_DUE"
+	EventDeviceBlocked    EventKind = "DEVICE_LIMIT_REACHED"
+	EventSettingsUpdated  EventKind = "SETTINGS_UPDATED"
 )
 
 type Event struct {

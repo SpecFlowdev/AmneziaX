@@ -133,5 +133,25 @@ func (h *Hub) RunMaintenance(ctx context.Context) {
 		if err := h.store.PruneUsage(ctx, h.cfg.UsageRetention); err != nil {
 			h.log.Error("maintenance: prune usage", "error", err)
 		}
+
+		// Nodes whose rental period has elapsed roll onto the next date and
+		// leave one event behind, so the operator sees what has to be paid.
+		due, err := h.store.RollDuePayments(ctx)
+		if err != nil {
+			h.log.Error("maintenance: node billing", "error", err)
+		}
+		for i := range due {
+			n := &due[i]
+			h.log.Info("node payment due", "node", n.Name, "provider", n.Provider,
+				"amount", n.CostAmount, "currency", n.CostCurrency)
+			h.store.LogEvent(ctx, domain.EventNodePaymentDue, "system", n.Name,
+				"rental period ended — payment due",
+				map[string]any{
+					"provider": n.Provider,
+					"amount":   n.CostAmount,
+					"currency": n.CostCurrency,
+					"cycle":    n.BillingCycle,
+				})
+		}
 	}
 }

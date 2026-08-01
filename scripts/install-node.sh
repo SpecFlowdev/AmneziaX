@@ -71,9 +71,33 @@ esac
 
 # ---------------------------------------------------------------- dependencies
 
+# apt on a fresh cloud image is usually busy with unattended-upgrades, so the
+# lock has to be waited for rather than treated as a failure.
+wait_for_apt() {
+  local waited=0
+  while fuser /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/lib/apt/lists/lock \
+        /var/cache/apt/archives/lock >/dev/null 2>&1; do
+    if [[ $waited -eq 0 ]]; then
+      info "waiting for another package manager to finish (unattended-upgrades?)"
+    fi
+    if (( waited >= 300 )); then
+      warn "the package lock is still held after 5 minutes"
+      return 1
+    fi
+    sleep 5
+    waited=$((waited + 5))
+  done
+  return 0
+}
+
 pkg_install() {
   if command -v apt-get >/dev/null 2>&1; then
-    apt-get update -qq && apt-get install -y -qq "$@"
+    wait_for_apt || true
+    export DEBIAN_FRONTEND=noninteractive
+    # DPkg::Lock::Timeout makes apt itself queue instead of erroring out; the
+    # explicit wait above covers older releases that do not honour it.
+    apt-get -o DPkg::Lock::Timeout=300 update -qq \
+      && apt-get -o DPkg::Lock::Timeout=300 install -y -qq "$@"
   elif command -v dnf >/dev/null 2>&1; then
     dnf install -y -q "$@"
   elif command -v yum >/dev/null 2>&1; then
@@ -85,11 +109,33 @@ pkg_install() {
   fi
 }
 
-missing=()
-for tool in curl unzip; do
-  command -v "$tool" >/dev/null 2>&1 || missing+=("$tool")
-done
-[[ ${#missing[@]} -eq 0 ]] || { info "installing ${missing[*]}"; pkg_install "${missing[@]}"; }
+command -v curl >/dev/null 2>&1 || { info "installing curl"; pkg_install curl \
+  || die "curl is required and could not be installed"; }
+
+# unzip is only needed to unpack the xray release, and a locked package manager
+# should not stop the install when python3 can do the same job.
+unpack_zip() {
+  local archive="$1" dest="$2"
+  mkdir -p "$dest"
+  if command -v unzip >/dev/null 2>&1; then
+    unzip -oq "$archive" -d "$dest"
+  elif command -v python3 >/dev/null 2>&1; then
+    python3 - "$archive" "$dest" <<'PYEOF'
+import sys, zipfile
+with zipfile.ZipFile(sys.argv[1]) as z:
+    z.extractall(sys.argv[2])
+PYEOF
+  elif command -v busybox >/dev/null 2>&1; then
+    busybox unzip -oq "$archive" -d "$dest"
+  else
+    return 1
+  fi
+}
+
+if ! command -v unzip >/dev/null 2>&1 && ! command -v python3 >/dev/null 2>&1; then
+  info "installing unzip"
+  pkg_install unzip || warn "could not install unzip — will try other unpackers"
+fi
 
 command -v systemctl >/dev/null 2>&1 || die "this installer needs systemd"
 
@@ -104,7 +150,7 @@ else
   curl -fsSL -o "$tmp/xray.zip" \
     "https://github.com/XTLS/Xray-core/releases/download/${XRAY_VERSION}/${XRAY_ASSET}" \
     || die "could not download xray-core"
-  unzip -oq "$tmp/xray.zip" -d "$tmp/xray"
+  unpack_zip "$tmp/xray.zip" "$tmp/xray" || die "could not unpack the xray archive — install unzip or python3 and re-run"
   install -m 0755 "$tmp/xray/xray" "$BIN_DIR/xray"
   mkdir -p /usr/local/share/xray
   install -m 0644 "$tmp/xray/geoip.dat" "$tmp/xray/geosite.dat" /usr/local/share/xray/
@@ -137,7 +183,7 @@ done
 
 if [[ $downloaded -eq 0 ]]; then
   warn "could not download a prebuilt agent — building from source"
-  command -v git >/dev/null 2>&1 || pkg_install git
+  command -v git >/dev/null 2>&1 || pkg_install git || die "git is required to build from source"
   command -v go >/dev/null 2>&1 || die "install Go and re-run, or check that the panel is reachable"
   src="$(mktemp -d)"
   git clone --depth 1 https://github.com/SpecFlowdev/AmneziaX "$src/AmneziaX" >/dev/null 2>&1 \

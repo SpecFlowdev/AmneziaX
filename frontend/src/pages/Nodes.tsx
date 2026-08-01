@@ -13,13 +13,29 @@ import {
   useAction,
 } from '../components/ui'
 import { useI18n } from '../i18n'
-import { api, type ConfigProfile, type Node, type ResetStrategy } from '../lib/api'
+import {
+  api,
+  type BillingCycle,
+  type ConfigProfile,
+  type Node,
+  type ResetStrategy,
+} from '../lib/api'
 import { useAuth } from '../lib/auth'
-import { bytes, duration, flag, parseBytes, relative } from '../lib/format'
+import {
+  bytes,
+  dateOnly,
+  duration,
+  flag,
+  fromDatetimeLocal,
+  parseBytes,
+  relative,
+  toDatetimeLocal,
+} from '../lib/format'
 import { useFetch } from '../lib/useApi'
-import { NodeHealthBadge } from './Dashboard'
+import { money, NodeHealthBadge } from './Dashboard'
 
 const STRATEGIES: ResetStrategy[] = ['NO_RESET', 'DAY', 'WEEK', 'MONTH']
+const CYCLES: BillingCycle[] = ['NONE', 'MONTHLY', 'QUARTERLY', 'YEARLY']
 
 interface Draft {
   name: string
@@ -33,6 +49,14 @@ interface Draft {
   trafficResetStrategy: ResetStrategy
   notifyPercent: string
   isDisabled: boolean
+  provider: string
+  providerUrl: string
+  costAmount: string
+  costCurrency: string
+  billingCycle: BillingCycle
+  nextPaymentAt: string
+  billingNotes: string
+  tags: string
 }
 
 const emptyDraft: Draft = {
@@ -47,6 +71,14 @@ const emptyDraft: Draft = {
   trafficResetStrategy: 'NO_RESET',
   notifyPercent: '0',
   isDisabled: false,
+  provider: '',
+  providerUrl: '',
+  costAmount: '',
+  costCurrency: '',
+  billingCycle: 'NONE',
+  nextPaymentAt: '',
+  billingNotes: '',
+  tags: '',
 }
 
 export function Nodes() {
@@ -155,7 +187,49 @@ export function Nodes() {
                   {node.consumptionMultiplier !== 1 && (
                     <span className="pill">×{node.consumptionMultiplier}</span>
                   )}
+                  {(node.tags ?? []).map((tag) => (
+                    <span key={tag} className="pill">
+                      {tag}
+                    </span>
+                  ))}
                 </div>
+
+                {(node.provider || node.costAmount > 0) && (
+                  <div className="split small" style={{ gap: 8, flexWrap: 'wrap' }}>
+                    {node.provider && (
+                      <span className="pill">
+                        <Icon name="server" size={12} />
+                        {node.providerUrl ? (
+                          <a href={node.providerUrl} target="_blank" rel="noreferrer">
+                            {node.provider}
+                          </a>
+                        ) : (
+                          node.provider
+                        )}
+                      </span>
+                    )}
+                    {node.costAmount > 0 && (
+                      <span className="pill">
+                        {money(node.costAmount, node.costCurrency || 'USD')}
+                        <span className="dim">
+                          {t.billing[`cycle${node.billingCycle}` as 'cycleNONE'].toLowerCase()}
+                        </span>
+                      </span>
+                    )}
+                    {node.nextPaymentAt && (
+                      <span
+                        className={`pill${
+                          new Date(node.nextPaymentAt).getTime() - Date.now() < 7 * 864e5
+                            ? ' badge-warn'
+                            : ''
+                        }`}
+                      >
+                        <Icon name="clock" size={12} />
+                        {dateOnly(node.nextPaymentAt, lang)}
+                      </span>
+                    )}
+                  </div>
+                )}
 
                 {node.hostname && (
                   <div className="small dim">
@@ -334,6 +408,14 @@ function NodeEditor({
           trafficResetStrategy: node.trafficResetStrategy,
           notifyPercent: String(node.notifyPercent),
           isDisabled: node.isDisabled,
+          provider: node.provider,
+          providerUrl: node.providerUrl,
+          costAmount: node.costAmount ? String(node.costAmount) : '',
+          costCurrency: node.costCurrency,
+          billingCycle: node.billingCycle ?? 'NONE',
+          nextPaymentAt: toDatetimeLocal(node.nextPaymentAt),
+          billingNotes: node.billingNotes,
+          tags: (node.tags ?? []).join(', '),
         }
       : emptyDraft,
   )
@@ -361,6 +443,17 @@ function NodeEditor({
       trafficResetStrategy: draft.trafficResetStrategy,
       notifyPercent: Number.parseInt(draft.notifyPercent, 10) || 0,
       viewPosition: node?.viewPosition ?? 0,
+      provider: draft.provider.trim(),
+      providerUrl: draft.providerUrl.trim(),
+      costAmount: Number.parseFloat(draft.costAmount.replace(',', '.')) || 0,
+      costCurrency: draft.costCurrency.trim().toUpperCase(),
+      billingCycle: draft.billingCycle,
+      nextPaymentAt: fromDatetimeLocal(draft.nextPaymentAt),
+      billingNotes: draft.billingNotes,
+      tags: draft.tags
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean),
     }
     const ok = await run(async () => {
       if (node) {
@@ -475,6 +568,70 @@ function NodeEditor({
           />
         </Field>
       </div>
+
+      <hr className="sep" />
+      <div className="split">
+        <Icon name="chart" size={16} />
+        <strong style={{ fontSize: 13.5 }}>{t.billing.title}</strong>
+        <span className="small dim">{t.billing.subtitle}</span>
+      </div>
+
+      <div className="grid cols-2">
+        <Field label={t.billing.provider} hint="Hetzner, Aeza, Vultr…">
+          <input value={draft.provider} onChange={(e) => set('provider', e.target.value)} />
+        </Field>
+        <Field label={t.billing.providerUrl} hint={t.common.optional}>
+          <input value={draft.providerUrl} onChange={(e) => set('providerUrl', e.target.value)} />
+        </Field>
+      </div>
+
+      <div className="grid cols-3">
+        <Field label={t.billing.cost}>
+          <input
+            value={draft.costAmount}
+            inputMode="decimal"
+            placeholder="0"
+            onChange={(e) => set('costAmount', e.target.value.replace(/[^\d.,]/g, ''))}
+          />
+        </Field>
+        <Field label={t.settings.currency} hint={t.common.optional}>
+          <input
+            value={draft.costCurrency}
+            maxLength={8}
+            placeholder="EUR"
+            onChange={(e) => set('costCurrency', e.target.value.toUpperCase())}
+          />
+        </Field>
+        <Field label={t.billing.cycle}>
+          <select
+            value={draft.billingCycle}
+            onChange={(e) => set('billingCycle', e.target.value as BillingCycle)}
+          >
+            {CYCLES.map((c) => (
+              <option key={c} value={c}>
+                {t.billing[`cycle${c}` as 'cycleNONE']}
+              </option>
+            ))}
+          </select>
+        </Field>
+      </div>
+
+      <div className="grid cols-2">
+        <Field label={t.billing.nextPayment} hint={t.common.optional}>
+          <input
+            type="datetime-local"
+            value={draft.nextPaymentAt}
+            onChange={(e) => set('nextPaymentAt', e.target.value)}
+          />
+        </Field>
+        <Field label={t.billing.tags} hint={t.hosts.tagsHint}>
+          <input value={draft.tags} onChange={(e) => set('tags', e.target.value)} />
+        </Field>
+      </div>
+
+      <Field label={t.billing.notes} hint={t.common.optional}>
+        <input value={draft.billingNotes} onChange={(e) => set('billingNotes', e.target.value)} />
+      </Field>
 
       <label className="checkbox">
         <input
