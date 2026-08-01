@@ -215,3 +215,11 @@ user gets `403`; an unknown token gets `404`.
 |---|---|---|
 | `GET` | `/install-node.sh` | The node installer. Public — it carries no secrets. |
 | `GET` | `/install-panel.sh` | The panel installer. |
+
+## Node control stream
+
+Node agents do not use the REST API. They open a bidirectional gRPC stream at
+`node.v1.NodeControl/Connect`, authenticated by the enrolment token in the first
+message. Behind the bundled Caddy that stream shares port 443 with the API: the
+proxy routes `/node.v1.NodeControl/*` to the panel's gRPC listener and
+everything else to the web UI. See [ARCHITECTURE.md](ARCHITECTURE.md).

@@ -1,0 +1,41 @@
+# Caddy terminates TLS for everything AmneziaX exposes.
+#
+# Both the web panel and the node control stream live on 443. gRPC is told
+# apart by its request path — a gRPC call to NodeControl.Connect arrives as
+# POST /node.v1.NodeControl/Connect — and is forwarded to the panel's gRPC
+# listener over h2c. Everything else is the API and the web UI.
+#
+# The installer prepends a global options block with an ACME email when one is
+# given, so this file deliberately starts at the site block.
+
+{$AMNEZIAX_DOMAIN} {
+	@grpc path /node.v1.NodeControl/*
+	handle @grpc {
+		reverse_proxy h2c://panel:9090 {
+			# Node agents hold one stream open for their whole lifetime, so the
+			# proxy must never buffer or time the connection out.
+			flush_interval -1
+			transport http {
+				read_timeout 0
+				write_timeout 0
+			}
+		}
+	}
+
+	handle {
+		encode zstd gzip
+		reverse_proxy panel:8080
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN"
+		Referrer-Policy "same-origin"
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}
