@@ -2,6 +2,10 @@ name: Release
 
 # Publishes the panel image and the agent binaries. Once this has run for a
 # release, install-panel.sh pulls instead of building on the operator's server.
+#
+# Tag with a pre-release identifier — v0.2.0-beta.1, v0.2.0-rc.1 — and the
+# release is marked as a pre-release and does NOT move :latest, so a beta never
+# reaches installs that follow the stable channel.
 on:
   push:
     tags: ['v*']
@@ -11,11 +15,53 @@ permissions:
   contents: write
   packages: write
 
-env:
-  IMAGE: ghcr.io/${{ github.repository_owner }}/amneziax-panel
-
 jobs:
+  meta:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      prerelease: ${{ steps.v.outputs.prerelease }}
+      tags: ${{ steps.v.outputs.tags }}
+    steps:
+      - id: v
+        run: |
+          set -euo pipefail
+          image="ghcr.io/$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')/amneziax-panel"
+
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            version="${GITHUB_REF_NAME#v}"
+          else
+            # A manual run publishes a moving :edge build, never :latest.
+            version="edge-$(date -u +%Y%m%d)-${GITHUB_SHA::7}"
+          fi
+
+          # Semver says anything after a hyphen is a pre-release identifier.
+          if [ "$GITHUB_REF_TYPE" != tag ] || [ "${version#*-}" != "$version" ]; then
+            prerelease=true
+          else
+            prerelease=false
+          fi
+
+          tags="$image:$version"
+          if [ "$prerelease" = false ]; then
+            tags="$tags,$image:latest"
+          elif [ "$GITHUB_REF_TYPE" != tag ]; then
+            tags="$tags,$image:edge"
+          fi
+
+          {
+            echo "version=$version"
+            echo "prerelease=$prerelease"
+            echo "tags=$tags"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "### Release \`$version\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- pre-release: \`$prerelease\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- image tags: \`$tags\`" >> "$GITHUB_STEP_SUMMARY"
+
   image:
+    needs: meta
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -26,30 +72,21 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Work out the tags
-        id: meta
-        run: |
-          version="${GITHUB_REF_NAME#v}"
-          if [ "$GITHUB_REF_TYPE" != tag ]; then version="main"; fi
-          image="$(echo "$IMAGE" | tr '[:upper:]' '[:lower:]')"
-          {
-            echo "version=$version"
-            echo "tags=$image:$version,$image:latest"
-          } >> "$GITHUB_OUTPUT"
       - uses: docker/build-push-action@v6
         with:
           context: .
           file: deploy/Dockerfile.panel
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: ${{ needs.meta.outputs.tags }}
           build-args: |
-            VERSION=${{ steps.meta.outputs.version }}
+            VERSION=${{ needs.meta.outputs.version }}
             COMMIT=${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
   binaries:
+    needs: meta
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -58,16 +95,17 @@ jobs:
           go-version-file: go.mod
           cache: true
       - name: Build the agent
+        env:
+          VERSION: ${{ needs.meta.outputs.version }}
         run: |
-          version="${GITHUB_REF_NAME#v}"
-          [ "$GITHUB_REF_TYPE" = tag ] || version="main"
+          set -euo pipefail
           mkdir -p dist
           for arch in amd64 arm64; do
             CGO_ENABLED=0 GOOS=linux GOARCH="$arch" go build -trimpath \
-              -ldflags "-s -w -X github.com/SpecFlowdev/AmneziaX/internal/version.Version=$version -X github.com/SpecFlowdev/AmneziaX/internal/version.Commit=$GITHUB_SHA" \
+              -ldflags "-s -w -X github.com/SpecFlowdev/AmneziaX/internal/version.Version=$VERSION -X github.com/SpecFlowdev/AmneziaX/internal/version.Commit=$GITHUB_SHA" \
               -o "dist/amneziax-node-linux-$arch" ./cmd/node
           done
-          (cd dist && sha256sum * > SHA256SUMS)
+          (cd dist && sha256sum ./* > SHA256SUMS)
       - uses: actions/upload-artifact@v4
         with:
           name: agent-binaries
@@ -77,3 +115,7 @@ jobs:
         with:
           files: dist/*
           generate_release_notes: true
+          prerelease: ${{ needs.meta.outputs.prerelease == 'true' }}
+          # A pre-release must never become the target of
+          # /releases/latest/download, which is where node installs look.
+          make_latest: ${{ needs.meta.outputs.prerelease == 'true' && 'false' || 'true' }}

@@ -1,10 +1,21 @@
 <div align="center">
 
-# AmneziaX
+<img src="docs/assets/header.svg" alt="AmneziaX" width="100%">
 
-**A self-hosted control plane for Xray-core: one panel, many nodes.**
+[![CI](https://github.com/SpecFlowdev/AmneziaX/actions/workflows/ci.yml/badge.svg)](https://github.com/SpecFlowdev/AmneziaX/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/SpecFlowdev/AmneziaX?include_prereleases&sort=semver&color=e11d48)](https://github.com/SpecFlowdev/AmneziaX/releases)
+[![License](https://img.shields.io/github/license/SpecFlowdev/AmneziaX?color=e11d48)](LICENSE)
 
-[Русская версия](README.ru.md) · [Architecture](docs/ARCHITECTURE.md) · [API reference](docs/API.md)
+[![Go](https://img.shields.io/badge/Go-1.25-00ADD8?logo=go&logoColor=white)](https://go.dev)
+[![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)](https://react.dev)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org)
+[![Docker](https://img.shields.io/badge/Docker-compose-2496ED?logo=docker&logoColor=white)](https://docs.docker.com/compose/)
+[![Caddy](https://img.shields.io/badge/Caddy-2-1F88C0?logo=caddy&logoColor=white)](https://caddyserver.com)
+[![gRPC](https://img.shields.io/badge/gRPC-streaming-244c5a?logo=grpc&logoColor=white)](https://grpc.io)
+[![Xray](https://img.shields.io/badge/Xray--core-VLESS%20%C2%B7%20REALITY-e11d48)](https://github.com/XTLS/Xray-core)
+
+**[Русская версия](README.ru.md)** · [Architecture](docs/ARCHITECTURE.md) · [API reference](docs/API.md) · [Changelog](CHANGELOG.md)
 
 </div>
 
@@ -18,6 +29,10 @@ user or revoking one takes effect in seconds, on every server at once.
 
 It installs with one command and needs no Xray knowledge to get running: a fresh
 install already contains a working VLESS + REALITY profile.
+
+<div align="center">
+  <img src="docs/assets/dashboard.png" alt="The AmneziaX dashboard" width="100%">
+</div>
 
 ## Highlights
 
@@ -149,22 +164,9 @@ The node agent (`/etc/amneziax-node.env`):
 
 ## How it fits together
 
-```
-   administrator ─┐  :443                    ┌──────────────────────┐
-   subscriber   ──┤ ────────────────────────▶ │  Caddy  (TLS, ACME)  │
-   node agent   ──┘  :9999                    └──────────┬───────────┘
-                                   :9999 ─────┤────── :443
-                                              ┌──────────▼───────────┐
-                                              │  Panel  :9090 (gRPC) │──▶ Postgres
-                                              │         :8080 (HTTP) │
-                                              └──────────┬───────────┘
-                                 persistent bidirectional stream
-                            ┌────────────────────────────┴───┐
-                      ┌─────▼─────┐                    ┌─────▼─────┐
-                      │  Agent    │                    │  Agent    │
-                      │  xray-core│                    │  xray-core│
-                      └───────────┘                    └───────────┘
-```
+<div align="center">
+  <img src="docs/assets/architecture.svg" alt="AmneziaX architecture" width="100%">
+</div>
 
 The agent dials the panel and keeps one stream open. The panel sends rendered
 configurations and commands down it; the agent sends heartbeats, apply results,
@@ -173,6 +175,16 @@ exactly like one with a public address.
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the data model and the sync
 algorithm.
+
+## A look around
+
+| Nodes | Users |
+|---|---|
+| <img src="docs/assets/nodes.png" alt="The nodes page" width="100%"> | <img src="docs/assets/users.png" alt="The users page" width="100%"> |
+
+Live telemetry per node, one-line install commands, rendered configuration and
+log access on the left; quotas, squads, devices and subscription links on the
+right.
 
 ## Building from source
 
@@ -220,6 +232,13 @@ stream, and the panel binds no host port of its own. That leaves 80, 443 and the
 node port as the only attack surface on the panel server — and the node port
 answers nothing except the control service.
 
+## Contributing
+
+Bug reports, ideas and pull requests are welcome — see
+[CONTRIBUTING.md](CONTRIBUTING.md) for how to get a development environment
+running and what CI expects. Security problems go through
+[SECURITY.md](SECURITY.md), not a public issue.
+
 ## License
 
-See [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE).

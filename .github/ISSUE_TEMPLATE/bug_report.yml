@@ -1,0 +1,67 @@
+name: Bug report
+description: Something in the panel or a node does not work
+labels: ['bug']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. Please do not paste secrets: node tokens, the
+        contents of `.env`, `JWT_SECRET`, subscription links or REALITY private
+        keys. Redact them first.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you expected, and what happened instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Create a node with …
+        2. Open Users → …
+        3. See the error
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Panel version
+      description: Settings → About, or the `version` field in the panel log.
+      placeholder: '0.1.0'
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Where does it happen
+      options:
+        - Panel (web UI)
+        - Panel (API)
+        - Node agent
+        - Installer
+        - Subscriptions
+        - Not sure
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: Server OS
+      placeholder: 'Ubuntu 24.04'
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: |
+        Panel: `cd /opt/amneziax && docker compose logs --tail 100 panel`
+        Node: `journalctl -u amneziax-node -n 100 --no-pager`
+      render: shell
