@@ -221,6 +221,11 @@ func (a *API) Router(ui http.Handler) http.Handler {
 	// subscription uuid is the credential. HEAD is registered alongside GET
 	// because several clients probe a subscription that way before fetching it.
 	for _, method := range []string{http.MethodGet, http.MethodHead} {
+		// The one link an operator hands out. It serves the subscriber page to a
+		// browser and the configuration to an app, so a subscriber can open it
+		// and a client can import it without anyone choosing between two URLs.
+		r.Method(method, "/s/{token}", a.subscriptionEntry(ui))
+
 		r.Method(method, "/sub/{token}", http.HandlerFunc(a.subscription))
 		r.Method(method, "/sub/{token}/info", http.HandlerFunc(a.subscriptionInfo))
 		r.Method(method, "/sub/{token}/links", http.HandlerFunc(a.subscriptionLinks))

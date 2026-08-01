@@ -107,6 +107,43 @@ func requestedFormat(r *http.Request) subscription.Format {
 	return subscription.DetectFormat(r.UserAgent())
 }
 
+// subscriptionEntry backs /s/{token}, the only link an operator needs to hand
+// out. A person opening it in a browser gets the subscription page; a client app
+// fetching the same URL gets the configuration.
+func (a *API) subscriptionEntry(ui http.Handler) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if ui != nil && wantsHTML(r) {
+			ui.ServeHTTP(w, r)
+			return
+		}
+		a.subscription(w, r)
+	}
+}
+
+// wantsHTML separates a browser from a client app. Browsers ask for text/html
+// when they navigate; subscription clients send */* or no Accept at all. Keying
+// on that rather than on a list of known User-Agents means a client nobody has
+// seen yet still receives a configuration instead of a page it cannot parse.
+//
+// ?format= settles it either way: an explicit encoding always wins, and
+// ?format=page forces the human view for anyone debugging a link.
+func wantsHTML(r *http.Request) bool {
+	switch strings.ToLower(strings.TrimSpace(r.URL.Query().Get("format"))) {
+	case "":
+	case "page", "html":
+		return true
+	default:
+		return false
+	}
+	for _, part := range strings.Split(r.Header.Get("Accept"), ",") {
+		media := strings.TrimSpace(strings.SplitN(part, ";", 2)[0])
+		if strings.EqualFold(media, "text/html") {
+			return true
+		}
+	}
+	return false
+}
+
 // subscription serves the payload in whatever encoding the client understands.
 func (a *API) subscription(w http.ResponseWriter, r *http.Request) {
 	bundle, ok := a.subscriptionBundle(w, r)
