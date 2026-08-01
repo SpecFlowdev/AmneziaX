@@ -6,22 +6,29 @@ RUN npm ci --no-audit --no-fund || npm install --no-audit --no-fund
 COPY frontend/ ./
 RUN npm run build -- --outDir /ui/dist --emptyOutDir
 
-FROM golang:1.24-alpine AS build
+FROM golang:1.25-alpine AS build
 WORKDIR /src
-RUN apk add --no-cache git
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 COPY --from=ui /ui/dist ./internal/webui/dist
 ARG VERSION=dev
 ARG COMMIT=unknown
-RUN CGO_ENABLED=0 go build -trimpath \
-    -ldflags "-s -w -X github.com/SpecFlowdev/AmneziaX/internal/version.Version=${VERSION} -X github.com/SpecFlowdev/AmneziaX/internal/version.Commit=${COMMIT}" \
-    -o /out/amneziax-panel ./cmd/panel
+ENV LDFLAGS="-s -w -X github.com/SpecFlowdev/AmneziaX/internal/version.Version=${VERSION} -X github.com/SpecFlowdev/AmneziaX/internal/version.Commit=${COMMIT}"
+RUN CGO_ENABLED=0 go build -trimpath -ldflags "$LDFLAGS" -o /out/amneziax-panel ./cmd/panel
+
+# The agent binaries ship inside the panel image so a fresh node can install
+# itself with nothing but curl — no Go toolchain, no Docker, no registry.
+RUN set -eux; \
+    for arch in amd64 arm64; do \
+      CGO_ENABLED=0 GOOS=linux GOARCH="$arch" \
+        go build -trimpath -ldflags "$LDFLAGS" -o "/out/dist/amneziax-node-linux-$arch" ./cmd/node; \
+    done
 
 FROM alpine:3.20
-RUN apk add --no-cache ca-certificates tzdata && adduser -D -u 10001 amneziax
+RUN apk add --no-cache ca-certificates tzdata wget && adduser -D -u 10001 amneziax
 COPY --from=build /out/amneziax-panel /usr/local/bin/amneziax-panel
+COPY --from=build /out/dist /usr/local/share/amneziax/dist
 USER amneziax
 EXPOSE 8080 9090
 ENTRYPOINT ["/usr/local/bin/amneziax-panel"]

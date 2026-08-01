@@ -47,8 +47,10 @@ bash <(curl -fsSL https://raw.githubusercontent.com/SpecFlowdev/AmneziaX/main/sc
 ```
 
 It asks for your domain, then installs Docker if needed, generates every secret,
-starts Postgres, the panel and Caddy, and waits for the certificate. You can also
-pass everything up front:
+starts Postgres, the panel and Caddy, and waits for the certificate. When no
+published image matches the current code it builds one on the server instead of
+failing, which adds a few minutes to a first install. You can also pass
+everything up front:
 
 ```bash
 bash <(curl -fsSL .../install-panel.sh) --domain panel.example.com --email you@example.com -y
@@ -60,7 +62,8 @@ in, and change the password under **Settings**.
 Then:
 
 1. **Nodes → Add node.** Pick the starter profile and save. The panel shows a
-   single command — run it on the server you want to turn into a node.
+   single command — run it on the server you want to turn into a node. The agent
+   binary comes from the panel itself, so the node needs nothing but `curl`.
 2. **Hosts → Add host.** Point it at your inbound and enter the address your
    clients will connect to. For REALITY, paste the public key and a short id
    (**Config profiles → Generate REALITY keys** produces both).
@@ -122,6 +125,7 @@ The panel reads its settings from the environment (`/opt/amneziax/.env`).
 | `USAGE_RETENTION` | `2160h` | How long traffic history and events are kept. |
 | `SUBSCRIPTION_TITLE` | `AmneziaX` | Profile name shown in client apps. |
 | `SUBSCRIPTION_SUPPORT_URL` | — | Support link exposed to subscribers. |
+| `AGENT_DIST_DIR` | `/usr/local/share/amneziax/dist` | Prebuilt agent binaries the panel serves at `/dist`, so nodes install without a toolchain. |
 | `CORS_ORIGINS` | `*` | Comma-separated allowed origins. |
 | `LOG_LEVEL` | `info` | `debug`, `info`, `warn` or `error`. |
 

@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  go:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Check formatting
+        run: |
+          unformatted="$(gofmt -l cmd internal scripts 2>/dev/null || true)"
+          if [ -n "$unformatted" ]; then
+            echo "these files need gofmt:"; echo "$unformatted"; exit 1
+          fi
+      - run: go vet ./...
+      - run: go test ./... -race
+      - name: Cross-compile the agent
+        run: |
+          for arch in amd64 arm64; do
+            CGO_ENABLED=0 GOOS=linux GOARCH="$arch" go build -o /dev/null ./cmd/node
+          done
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --no-audit --no-fund
+        working-directory: frontend
+      - run: npm run build
+        working-directory: frontend
+      - name: Fail if the committed UI bundle is stale
+        run: |
+          if ! git diff --quiet -- internal/webui/dist; then
+            echo "internal/webui/dist is out of date — run 'make ui' and commit the result"
+            git --no-pager diff --stat -- internal/webui/dist
+            exit 1
+          fi
+
+  scripts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the installers parse
+        run: |
+          bash -n scripts/install-panel.sh
+          bash -n scripts/install-node.sh
+      - uses: ludeeus/action-shellcheck@master
+        with:
+          scandir: ./scripts
+          severity: error

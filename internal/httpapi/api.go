@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 
@@ -128,6 +129,18 @@ func (a *API) Router(ui http.Handler) http.Handler {
 	// enrolment token is passed on the command line by the operator.
 	r.Get("/install-node.sh", serveScript(scripts.InstallNode))
 	r.Get("/install-panel.sh", serveScript(scripts.InstallPanel))
+
+	// Prebuilt agent binaries, when the deployment ships them. This is what
+	// lets install-node.sh run on a server with nothing but curl.
+	if a.cfg.AgentDistDir != "" {
+		if info, err := os.Stat(a.cfg.AgentDistDir); err == nil && info.IsDir() {
+			r.Handle("/dist/*", http.StripPrefix("/dist/",
+				http.FileServer(http.Dir(a.cfg.AgentDistDir))))
+		} else {
+			a.log.Info("no agent binaries bundled; nodes will build from source",
+				"dir", a.cfg.AgentDistDir)
+		}
+	}
 
 	// Client-facing subscription endpoints are unauthenticated by design; the
 	// subscription uuid is the credential. HEAD is registered alongside GET

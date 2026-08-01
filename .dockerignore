@@ -1,0 +1,9 @@
+# Keep the build context small and stop host artefacts from leaking into images.
+.git
+.github
+bin/
+frontend/node_modules/
+frontend/tsconfig.tsbuildinfo
+docs/
+*.md
+.env
