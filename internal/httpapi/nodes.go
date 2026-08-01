@@ -264,7 +264,9 @@ func (a *API) installCommand(nodeUUID, token string) string {
 	if a.cfg.GRPCPublicTLS {
 		tls = " --tls"
 	}
+	// --panel-url lets the agent download its binary from this panel instead of
+	// needing a release, a registry or a Go toolchain on the node.
 	return fmt.Sprintf(
-		"bash <(curl -fsSL %s/install-node.sh) --panel %s:%d --uuid %s --token %s%s",
-		a.cfg.PublicURL, host, a.cfg.GRPCPublicPort, nodeUUID, token, tls)
+		"bash <(curl -fsSL %s/install-node.sh) --panel %s:%d --uuid %s --token %s%s --panel-url %s",
+		a.cfg.PublicURL, host, a.cfg.GRPCPublicPort, nodeUUID, token, tls, a.cfg.PublicURL)
 }

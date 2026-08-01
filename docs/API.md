@@ -215,6 +215,7 @@ user gets `403`; an unknown token gets `404`.
 |---|---|---|
 | `GET` | `/install-node.sh` | The node installer. Public — it carries no secrets. |
 | `GET` | `/install-panel.sh` | The panel installer. |
+| `GET` | `/dist/amneziax-node-linux-{amd64,arm64}` | The agent binary, when the deployment bundles it. This is what makes a node install need only `curl`. |
 
 ## Node control stream
 

@@ -16,6 +16,7 @@ NODE_UUID=""
 NODE_TOKEN=""
 INSECURE="true"
 SERVER_NAME=""
+PANEL_URL=""
 XRAY_VERSION="${XRAY_VERSION:-v25.1.30}"
 AGENT_VERSION="${AGENT_VERSION:-latest}"
 RELEASE_BASE="${AMNEZIAX_RELEASE_BASE:-https://github.com/SpecFlowdev/AmneziaX/releases}"
@@ -36,6 +37,7 @@ Usage: install-node.sh --panel HOST:PORT --uuid UUID --token TOKEN [options]
   --uuid UUID         node uuid shown by the panel
   --token TOKEN       one-time enrolment token
   --tls               dial the panel over TLS — required behind Caddy
+  --panel-url URL     panel origin to download the agent binary from
   --server-name NAME  TLS server name, when the panel sits behind a proxy
   --xray-version V    xray-core release to install (default: $XRAY_VERSION)
   -h, --help          show this help
@@ -48,6 +50,7 @@ while [[ $# -gt 0 ]]; do
     --uuid) NODE_UUID="$2"; shift 2 ;;
     --token) NODE_TOKEN="$2"; shift 2 ;;
     --tls) INSECURE="false"; shift ;;
+    --panel-url) PANEL_URL="${2%/}"; shift 2 ;;
     --server-name) SERVER_NAME="$2"; INSECURE="false"; shift 2 ;;
     --xray-version) XRAY_VERSION="$2"; shift 2 ;;
     -h|--help) usage; exit 0 ;;
@@ -110,12 +113,32 @@ fi
 # ---------------------------------------------------------------- agent
 
 info "installing the AmneziaX agent"
-agent_url="${RELEASE_BASE}/latest/download/amneziax-node-linux-${GOARCH}"
-[[ "$AGENT_VERSION" == "latest" ]] || agent_url="${RELEASE_BASE}/download/${AGENT_VERSION}/amneziax-node-linux-${GOARCH}"
 
-if ! curl -fsSL -o "$BIN_DIR/amneziax-node.new" "$agent_url"; then
-  warn "no published agent binary found — building from source"
-  command -v go >/dev/null 2>&1 || die "install Go, or publish a release binary, then re-run"
+# Sources are tried in order of how little the node has to have installed:
+# the panel itself ships the matching binary, then published releases, and
+# only then a build from source.
+agent_sources=()
+[[ -n "$PANEL_URL" ]] && agent_sources+=("${PANEL_URL}/dist/amneziax-node-linux-${GOARCH}")
+if [[ "$AGENT_VERSION" == "latest" ]]; then
+  agent_sources+=("${RELEASE_BASE}/latest/download/amneziax-node-linux-${GOARCH}")
+else
+  agent_sources+=("${RELEASE_BASE}/download/${AGENT_VERSION}/amneziax-node-linux-${GOARCH}")
+fi
+
+downloaded=0
+for url in "${agent_sources[@]}"; do
+  if curl -fsSL --retry 2 -o "$BIN_DIR/amneziax-node.new" "$url" \
+     && [[ -s "$BIN_DIR/amneziax-node.new" ]]; then
+    info "downloaded the agent from ${url%%/dist/*}"
+    downloaded=1
+    break
+  fi
+done
+
+if [[ $downloaded -eq 0 ]]; then
+  warn "could not download a prebuilt agent — building from source"
+  command -v git >/dev/null 2>&1 || pkg_install git
+  command -v go >/dev/null 2>&1 || die "install Go and re-run, or check that the panel is reachable"
   src="$(mktemp -d)"
   git clone --depth 1 https://github.com/SpecFlowdev/AmneziaX "$src/AmneziaX" >/dev/null 2>&1 \
     || die "could not clone the repository"
@@ -123,7 +146,9 @@ if ! curl -fsSL -o "$BIN_DIR/amneziax-node.new" "$agent_url"; then
     || die "build failed"
   rm -rf "$src"
 fi
+
 chmod 0755 "$BIN_DIR/amneziax-node.new"
+"$BIN_DIR/amneziax-node.new" --help >/dev/null 2>&1 || true
 mv "$BIN_DIR/amneziax-node.new" "$BIN_DIR/amneziax-node"
 
 # ---------------------------------------------------------------- service

@@ -15,7 +15,9 @@
 set -euo pipefail
 
 REPO_RAW="${AMNEZIAX_RAW:-https://raw.githubusercontent.com/SpecFlowdev/AmneziaX/main}"
+REPO_URL="${AMNEZIAX_REPO:-https://github.com/SpecFlowdev/AmneziaX}"
 INSTALL_DIR="${AMNEZIAX_DIR:-/opt/amneziax}"
+SRC_DIR=""  # set once INSTALL_DIR is final
 DOMAIN="${AMNEZIAX_DOMAIN:-}"
 ACME_EMAIL="${AMNEZIAX_ACME_EMAIL:-}"
 NODE_PORT="${AMNEZIAX_NODE_PORT:-9999}"
@@ -36,7 +38,7 @@ Usage: install-panel.sh [options]
   --email EMAIL       address for Let's Encrypt expiry notices (optional)
   --node-port PORT    port node agents connect on (default: $NODE_PORT)
   --dir PATH          install directory (default: $INSTALL_DIR)
-  --build             build the images from this checkout instead of pulling
+  --build             always build the images here instead of pulling them
   --skip-dns-check    do not verify that the domain resolves to this server
   -y, --yes           accept the defaults and do not ask anything
   -h, --help          show this help
@@ -155,6 +157,7 @@ done
 
 mkdir -p "$INSTALL_DIR"
 cd "$INSTALL_DIR"
+SRC_DIR="${INSTALL_DIR}/src"
 
 FRESH_INSTALL=0
 if [[ -f .env ]]; then
@@ -189,34 +192,56 @@ LOG_LEVEL=info
 EOF
 chmod 600 .env
 
+# write_caddyfile assembles the final config. Caddy rejects an empty `email`
+# argument, so the global block only appears when an address was actually given.
+write_caddyfile() {
+  local site="$1"
+  {
+    if [[ -n "$ACME_EMAIL" ]]; then
+      printf '{\n\temail %s\n}\n\n' "$ACME_EMAIL"
+    fi
+    cat "$site"
+  } > "${INSTALL_DIR}/Caddyfile"
+}
+
+# fetch_source keeps a shallow checkout next to the install, which is what the
+# images are built from when none are published yet.
+fetch_source() {
+  command -v git >/dev/null 2>&1 || { info "installing git"; pkg_install git; }
+  if [[ -d "$SRC_DIR/.git" ]]; then
+    info "updating the source checkout"
+    git -C "$SRC_DIR" fetch --depth 1 -q origin main && git -C "$SRC_DIR" reset --hard -q FETCH_HEAD
+  else
+    info "cloning the source"
+    rm -rf "$SRC_DIR"
+    git clone --depth 1 -q "$REPO_URL" "$SRC_DIR" || die "could not clone $REPO_URL"
+  fi
+}
+
+# use_source_build switches the stack over to images built here on this server.
+use_source_build() {
+  fetch_source
+  write_caddyfile "$SRC_DIR/deploy/Caddyfile"
+  COMPOSE=(docker compose -f "$SRC_DIR/deploy/docker-compose.yml" --env-file "${INSTALL_DIR}/.env")
+  export CADDYFILE="${INSTALL_DIR}/Caddyfile"
+  BUILD_LOCAL=1
+}
+
 info "writing the Caddy configuration"
-if [[ $BUILD_LOCAL -eq 1 && -f deploy/Caddyfile ]]; then
-  cp deploy/Caddyfile Caddyfile.site
+if [[ $BUILD_LOCAL -eq 1 ]]; then
+  use_source_build
 else
   curl -fsSL -o Caddyfile.site "${REPO_RAW}/deploy/Caddyfile" \
     || die "could not download the Caddy configuration"
-fi
+  write_caddyfile Caddyfile.site
+  rm -f Caddyfile.site
 
-# Caddy rejects an empty `email` argument, so the global block only appears
-# when an address was actually given.
-{
-  if [[ -n "$ACME_EMAIL" ]]; then
-    printf '{\n\temail %s\n}\n\n' "$ACME_EMAIL"
-  fi
-  cat Caddyfile.site
-} > Caddyfile
-rm -f Caddyfile.site
-
-if [[ $BUILD_LOCAL -eq 0 ]]; then
   info "fetching the compose file"
   curl -fsSL -o docker-compose.yml "${REPO_RAW}/deploy/docker-compose.yml" \
     || die "could not download the compose file"
   # Without a local checkout there is no build context, so drop the build stanza.
   sed -i '/^    build:/,/^      dockerfile:.*$/d' docker-compose.yml
   COMPOSE=(docker compose --env-file .env)
-else
-  COMPOSE=(docker compose -f deploy/docker-compose.yml --env-file .env)
-  export CADDYFILE="${INSTALL_DIR}/Caddyfile"
 fi
 
 # ---------------------------------------------------------------- launch
@@ -231,11 +256,22 @@ if [[ $ASSUME_YES -eq 0 && -t 0 ]]; then
   [[ -z "$answer" || "$answer" =~ ^[Yy]$ ]] || die "aborted"
 fi
 
+# Published images are the fast path, but they are not guaranteed to exist for
+# every commit, so a failed pull falls back to building here instead of leaving
+# the operator with a registry error.
+if [[ $BUILD_LOCAL -eq 0 ]]; then
+  info "pulling the images"
+  if ! "${COMPOSE[@]}" pull >/dev/null 2>&1; then
+    warn "no published images for this release — building them here instead"
+    warn "this takes a few minutes on first install"
+    use_source_build
+  fi
+fi
+
 info "starting the stack"
 if [[ $BUILD_LOCAL -eq 1 ]]; then
   "${COMPOSE[@]}" up -d --build
 else
-  "${COMPOSE[@]}" pull
   "${COMPOSE[@]}" up -d
 fi
 

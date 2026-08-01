@@ -44,6 +44,10 @@ type Panel struct {
 	SubscriptionProfileTitle string
 	SubscriptionSupportURL   string
 
+	// AgentDistDir holds prebuilt node agent binaries the panel serves at
+	// /dist, so a node can install itself without a Go toolchain or a registry.
+	AgentDistDir string
+
 	CORSOrigins []string
 	LogLevel    string
 	TLSCert     string
@@ -69,6 +73,7 @@ func LoadPanel() (*Panel, error) {
 		UsageRetention:           envDuration("USAGE_RETENTION", 90*24*time.Hour),
 		SubscriptionProfileTitle: env("SUBSCRIPTION_TITLE", "AmneziaX"),
 		SubscriptionSupportURL:   env("SUBSCRIPTION_SUPPORT_URL", ""),
+		AgentDistDir:             env("AGENT_DIST_DIR", "/usr/local/share/amneziax/dist"),
 		CORSOrigins:              splitList(env("CORS_ORIGINS", "*")),
 		LogLevel:                 env("LOG_LEVEL", "info"),
 		TLSCert:                  env("PANEL_TLS_CERT", ""),
