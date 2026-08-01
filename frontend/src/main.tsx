@@ -5,6 +5,7 @@ import { Shell } from './components/Shell'
 import { Spinner, ToastProvider } from './components/ui'
 import { I18nProvider } from './i18n'
 import { AuthProvider, useAuth } from './lib/auth'
+import { BrandingProvider } from './lib/branding'
 import { ThemeProvider } from './lib/theme'
 import { Admins } from './pages/Admins'
 import { Dashboard } from './pages/Dashboard'
@@ -53,7 +54,8 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <I18nProvider>
       <ThemeProvider>
-        <ToastProvider>
+        <BrandingProvider>
+          <ToastProvider>
           <BrowserRouter>
             <Routes>
               {/* The subscriber page is public and never mounts the admin shell. */}
@@ -61,7 +63,8 @@ createRoot(document.getElementById('root')!).render(
               <Route path="/*" element={<AuthProvider><AdminArea /></AuthProvider>} />
             </Routes>
           </BrowserRouter>
-        </ToastProvider>
+          </ToastProvider>
+        </BrandingProvider>
       </ThemeProvider>
     </I18nProvider>
   </StrictMode>,

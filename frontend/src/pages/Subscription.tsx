@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import QRCode from 'qrcode'
-import { BrandMark, Icon } from '../components/icons'
+import { Icon } from '../components/icons'
+import { Brand } from '../components/Brand'
 import { CopyButton, Meter, Spinner } from '../components/ui'
 import { useI18n, type Lang } from '../i18n'
 import type { SubscriptionInfo } from '../lib/api'
@@ -57,13 +58,7 @@ export function Subscription() {
     <div className="center-screen">
       <div style={{ width: 'min(560px, 100%)', display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div className="split">
-          <div className="brand-mark">
-            <BrandMark size={19} />
-          </div>
-          <div className="stack">
-            <span className="brand-name">{info?.title ?? t.common.appName}</span>
-            <span className="brand-sub">{t.sub.title}</span>
-          </div>
+          <Brand showTagline={false} />
           <div style={{ flex: 1 }} />
           <div className="tabs">
             {(['ru', 'en'] as Lang[]).map((l) => (

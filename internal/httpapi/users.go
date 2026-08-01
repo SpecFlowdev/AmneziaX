@@ -330,10 +330,16 @@ func (a *API) bundleForUser(r *http.Request, user *domain.User) (subscription.Bu
 	if err != nil {
 		return subscription.Bundle{}, err
 	}
+	// Branding is configurable at runtime, so the title clients display follows
+	// the panel settings rather than the environment it booted with.
+	settings, err := a.settings(r)
+	if err != nil {
+		return subscription.Bundle{}, err
+	}
 	return subscription.Bundle{
 		User:       user,
 		Hosts:      hosts,
-		Title:      a.cfg.SubscriptionProfileTitle,
-		SupportURL: a.cfg.SubscriptionSupportURL,
+		Title:      a.subscriptionTitle(settings),
+		SupportURL: a.supportURL(settings),
 	}, nil
 }

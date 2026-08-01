@@ -9,9 +9,12 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/SpecFlowdev/AmneziaX/internal/auth"
 	"github.com/SpecFlowdev/AmneziaX/internal/config"
+	"github.com/SpecFlowdev/AmneziaX/internal/domain"
 	"github.com/SpecFlowdev/AmneziaX/internal/hub"
 	"github.com/SpecFlowdev/AmneziaX/internal/storage/postgres"
 	"github.com/SpecFlowdev/AmneziaX/scripts"
@@ -25,10 +28,66 @@ type API struct {
 	issuer *auth.Issuer
 	cfg    *config.Panel
 	log    *slog.Logger
+
+	// Settings are read on nearly every request, including unauthenticated
+	// subscription fetches, so they are cached and refreshed on write.
+	settingsMu    sync.RWMutex
+	settingsCache *domain.Settings
+	settingsAt    time.Time
 }
 
 func New(store *postgres.Store, h *hub.Hub, issuer *auth.Issuer, cfg *config.Panel, log *slog.Logger) *API {
 	return &API{store: store, hub: h, issuer: issuer, cfg: cfg, log: log}
+}
+
+const settingsTTL = 30 * time.Second
+
+// settings returns the panel settings, refreshing the cache when it is stale.
+func (a *API) settings(r *http.Request) (*domain.Settings, error) {
+	a.settingsMu.RLock()
+	cached, at := a.settingsCache, a.settingsAt
+	a.settingsMu.RUnlock()
+	if cached != nil && time.Since(at) < settingsTTL {
+		return cached, nil
+	}
+
+	fresh, err := a.store.Settings(r.Context())
+	if err != nil {
+		// Serving slightly stale branding beats failing the request.
+		if cached != nil {
+			return cached, nil
+		}
+		return nil, err
+	}
+	a.cacheSettings(fresh)
+	return fresh, nil
+}
+
+func (a *API) cacheSettings(s *domain.Settings) {
+	a.settingsMu.Lock()
+	a.settingsCache, a.settingsAt = s, time.Now()
+	a.settingsMu.Unlock()
+}
+
+// subscriptionTitle prefers the configured subscription title and falls back to
+// the brand name, so a fresh install shows something sensible in client apps.
+func (a *API) subscriptionTitle(s *domain.Settings) string {
+	if s != nil {
+		if s.SubscriptionTitle != "" {
+			return s.SubscriptionTitle
+		}
+		if s.BrandName != "" {
+			return s.BrandName
+		}
+	}
+	return a.cfg.SubscriptionProfileTitle
+}
+
+func (a *API) supportURL(s *domain.Settings) string {
+	if s != nil && s.SupportURL != "" {
+		return s.SupportURL
+	}
+	return a.cfg.SubscriptionSupportURL
 }
 
 func (a *API) Router(ui http.Handler) http.Handler {
@@ -42,6 +101,9 @@ func (a *API) Router(ui http.Handler) http.Handler {
 		r.Get("/health", a.health)
 		r.Post("/auth/login", a.login)
 		r.Get("/auth/bootstrap-status", a.bootstrapStatus)
+		// Branding is public so the sign-in screen and the subscription page
+		// render correctly before anyone has authenticated.
+		r.Get("/branding", a.branding)
 
 		r.Group(func(r chi.Router) {
 			r.Use(a.authenticated)
@@ -53,6 +115,16 @@ func (a *API) Router(ui http.Handler) http.Handler {
 			r.Get("/system/stats/traffic", a.trafficStats)
 			r.Get("/system/stats/top-users", a.topUsers)
 			r.Get("/system/events", a.events)
+			r.Get("/system/spend", a.spend)
+
+			r.Get("/settings", a.getSettings)
+			r.Put("/settings", a.writable(a.updateSettings))
+
+			r.Route("/tokens", func(r chi.Router) {
+				r.Get("/", a.ownerOnly(a.listTokens))
+				r.Post("/", a.ownerOnly(a.createToken))
+				r.Delete("/{id}", a.ownerOnly(a.deleteToken))
+			})
 
 			r.Route("/profiles", func(r chi.Router) {
 				r.Get("/", a.listProfiles)
@@ -113,6 +185,9 @@ func (a *API) Router(ui http.Handler) http.Handler {
 				r.Post("/{id}/revoke", a.writable(a.revokeUser))
 				r.Get("/{id}/usage", a.userUsage)
 				r.Get("/{id}/links", a.userLinks)
+				r.Get("/{id}/devices", a.userDevices)
+				r.Delete("/{id}/devices", a.writable(a.resetUserDevices))
+				r.Delete("/{id}/devices/{hwid}", a.writable(a.deleteUserDevice))
 			})
 
 			r.Route("/admins", func(r chi.Router) {
@@ -150,6 +225,8 @@ func (a *API) Router(ui http.Handler) http.Handler {
 		r.Method(method, "/sub/{token}/info", http.HandlerFunc(a.subscriptionInfo))
 		r.Method(method, "/sub/{token}/links", http.HandlerFunc(a.subscriptionLinks))
 		r.Method(method, "/sub/{token}/json", http.HandlerFunc(a.subscriptionJSON))
+		r.Method(method, "/sub/{token}/clash", http.HandlerFunc(a.subscriptionClash))
+		r.Method(method, "/sub/{token}/singbox", http.HandlerFunc(a.subscriptionSingBox))
 	}
 
 	if ui != nil {

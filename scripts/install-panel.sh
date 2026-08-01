@@ -68,9 +68,33 @@ done
 
 # ---------------------------------------------------------------- dependencies
 
+# apt on a fresh cloud image is usually busy with unattended-upgrades, so the
+# lock has to be waited for rather than treated as a failure.
+wait_for_apt() {
+  local waited=0
+  while fuser /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/lib/apt/lists/lock \
+        /var/cache/apt/archives/lock >/dev/null 2>&1; do
+    if [[ $waited -eq 0 ]]; then
+      info "waiting for another package manager to finish (unattended-upgrades?)"
+    fi
+    if (( waited >= 300 )); then
+      warn "the package lock is still held after 5 minutes"
+      return 1
+    fi
+    sleep 5
+    waited=$((waited + 5))
+  done
+  return 0
+}
+
 pkg_install() {
   if command -v apt-get >/dev/null 2>&1; then
-    apt-get update -qq && apt-get install -y -qq "$@"
+    wait_for_apt || true
+    export DEBIAN_FRONTEND=noninteractive
+    # DPkg::Lock::Timeout makes apt itself queue instead of erroring out; the
+    # explicit wait above covers older releases that do not honour it.
+    apt-get -o DPkg::Lock::Timeout=300 update -qq \
+      && apt-get -o DPkg::Lock::Timeout=300 install -y -qq "$@"
   elif command -v dnf >/dev/null 2>&1; then
     dnf install -y -q "$@"
   elif command -v yum >/dev/null 2>&1; then

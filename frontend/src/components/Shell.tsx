@@ -3,7 +3,8 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useI18n, type Lang } from '../i18n'
 import { useAuth } from '../lib/auth'
 import { useTheme } from '../lib/theme'
-import { BrandMark, Icon } from './icons'
+import { Icon } from './icons'
+import { Brand } from './Brand'
 
 interface NavEntry {
   to: string
@@ -57,13 +58,7 @@ export function Shell() {
     <div className="shell">
       <aside className={`sidebar${menuOpen ? ' open' : ''}`}>
         <div className="brand">
-          <div className="brand-mark">
-            <BrandMark size={19} />
-          </div>
-          <div className="stack">
-            <span className="brand-name">{t.common.appName}</span>
-            <span className="brand-sub">{t.common.tagline}</span>
-          </div>
+          <Brand />
         </div>
 
         {groups.map((group) => {

@@ -48,6 +48,23 @@ func (a *API) subscriptionBundle(w http.ResponseWriter, r *http.Request) (subscr
 		writeErr(w, http.StatusForbidden, "this subscription is disabled")
 		return subscription.Bundle{}, false
 	}
+
+	// Clients that identify their device let the panel enforce the device limit.
+	// Everything else is recorded but never blocked, because a missing header is
+	// not evidence of a new device.
+	if hwid := deviceID(r); hwid != "" {
+		allowed, _, err := a.store.TouchDevice(r.Context(), user.UUID, hwid,
+			r.UserAgent(), r.Header.Get("X-Device-OS"), user.HWIDDeviceLimit)
+		if err != nil {
+			a.log.Warn("device tracking failed", "user", user.UUID, "error", err)
+		} else if !allowed {
+			a.store.LogEvent(r.Context(), domain.EventDeviceBlocked, "subscription", user.Username,
+				"device limit reached", map[string]any{"limit": user.HWIDDeviceLimit})
+			writeErr(w, http.StatusForbidden, "this account has reached its device limit")
+			return subscription.Bundle{}, false
+		}
+	}
+
 	a.store.TouchSubscriptionOpen(r.Context(), user.UUID, r.UserAgent())
 
 	bundle, err := a.bundleForUser(r, user)
@@ -58,26 +75,53 @@ func (a *API) subscriptionBundle(w http.ResponseWriter, r *http.Request) (subscr
 	return bundle, true
 }
 
+// deviceID reads the hardware id clients send under one of several header
+// names; they have not converged on one.
+func deviceID(r *http.Request) string {
+	for _, h := range []string{"X-Hwid", "X-HWID", "X-Device-Id", "Hwid"} {
+		if v := strings.TrimSpace(r.Header.Get(h)); v != "" {
+			if len(v) > 128 {
+				v = v[:128]
+			}
+			return v
+		}
+	}
+	return ""
+}
+
 func applySubHeaders(w http.ResponseWriter, b subscription.Bundle) {
 	for k, v := range subscription.Headers(b) {
 		w.Header().Set(k, v)
 	}
 }
 
-// subscription returns the base64 payload every mainstream client understands.
+// requestedFormat honours an explicit ?format= and otherwise infers one from
+// the client's User-Agent.
+func requestedFormat(r *http.Request) subscription.Format {
+	if raw := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("format"))); raw != "" {
+		f := subscription.Format(raw)
+		if f.Valid() {
+			return f
+		}
+	}
+	return subscription.DetectFormat(r.UserAgent())
+}
+
+// subscription serves the payload in whatever encoding the client understands.
 func (a *API) subscription(w http.ResponseWriter, r *http.Request) {
 	bundle, ok := a.subscriptionBundle(w, r)
 	if !ok {
 		return
 	}
+	format := requestedFormat(r)
 	applySubHeaders(w, bundle)
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.Header().Set("Content-Type", format.ContentType())
 	w.Header().Set("Cache-Control", "no-store")
-	_, _ = w.Write([]byte(subscription.Base64(bundle)))
+	_, _ = w.Write([]byte(subscription.Render(bundle, format)))
 }
 
-// subscriptionLinks returns the same list in plain text, which is easier to
-// paste manually and to debug.
+// subscriptionLinks returns the plain list, which is easier to paste manually
+// and to debug.
 func (a *API) subscriptionLinks(w http.ResponseWriter, r *http.Request) {
 	bundle, ok := a.subscriptionBundle(w, r)
 	if !ok {
@@ -104,4 +148,25 @@ func (a *API) subscriptionInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, subscription.BuildInfo(bundle, a.subURL(bundle.User)))
+}
+
+// subscriptionClash and subscriptionSingBox let an operator hand out a link
+// that pins the format, for clients that do not identify themselves.
+func (a *API) subscriptionClash(w http.ResponseWriter, r *http.Request) {
+	a.serveFormat(w, r, subscription.FormatClash)
+}
+
+func (a *API) subscriptionSingBox(w http.ResponseWriter, r *http.Request) {
+	a.serveFormat(w, r, subscription.FormatSingBox)
+}
+
+func (a *API) serveFormat(w http.ResponseWriter, r *http.Request, f subscription.Format) {
+	bundle, ok := a.subscriptionBundle(w, r)
+	if !ok {
+		return
+	}
+	applySubHeaders(w, bundle)
+	w.Header().Set("Content-Type", f.ContentType())
+	w.Header().Set("Cache-Control", "no-store")
+	_, _ = w.Write([]byte(subscription.Render(bundle, f)))
 }

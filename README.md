@@ -34,6 +34,11 @@ install already contains a working VLESS + REALITY profile.
 | **Subscriptions** | Base64, plain-text and JSON endpoints plus a branded page with a QR code. |
 | **Roles** | Owner, administrator and read-only accounts. |
 | **Bilingual UI** | Russian and English, dark and light themes, in a deep crimson palette. |
+| **White-label branding** | Set the panel's name, logo and accent colour from Settings; they apply to the sidebar, the sign-in screen and the subscription page. |
+| **Infrastructure billing** | Record what each node costs, from which provider and on what cycle. The dashboard totals monthly spend, cost per TB and what is due next. |
+| **Client-aware subscriptions** | Clash/Mihomo YAML, sing-box JSON, plain and base64, chosen automatically from the client's User-Agent. |
+| **Device limits** | Clients that send a hardware id are tracked and capped per user; devices are listed and can be forgotten individually. |
+| **API tokens** | Scoped tokens for bots, billing systems and provisioning scripts. |
 
 ## Quick start
 

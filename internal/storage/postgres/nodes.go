@@ -14,7 +14,9 @@ const nodeColumns = `n.uuid, n.name, n.address, n.country_code, n.description, n
 	n.notify_percent, n.last_traffic_reset_at, n.agent_version, n.xray_version, n.xray_running,
 	n.xray_started_at, n.config_hash, n.hostname, n.os, n.arch, n.kernel, n.cpu_count, n.cpu_model,
 	n.cpu_usage, n.total_ram_bytes, n.used_ram_bytes, n.load_avg_1, n.online_users, n.status_message,
-	n.last_status_at, n.last_connected_at, n.view_position, n.created_at, n.updated_at`
+	n.last_status_at, n.last_connected_at, n.view_position, n.created_at, n.updated_at,
+	n.provider, n.provider_url, n.cost_amount, n.cost_currency, n.billing_cycle,
+	n.next_payment_at, n.billing_notes, n.tags`
 
 const nodeFrom = ` FROM nodes n LEFT JOIN config_profiles p ON p.uuid = n.config_profile_uuid`
 
@@ -26,12 +28,17 @@ func scanNode(row interface{ Scan(...any) error }) (*domain.Node, error) {
 		&n.NotifyPercent, &n.LastTrafficResetAt, &n.AgentVersion, &n.XrayVersion, &n.XrayRunning,
 		&n.XrayStartedAt, &n.ConfigHash, &n.Hostname, &n.OS, &n.Arch, &n.Kernel, &n.CPUCount, &n.CPUModel,
 		&n.CPUUsage, &n.TotalRAMBytes, &n.UsedRAMBytes, &n.LoadAvg1, &n.OnlineUsers, &n.StatusMessage,
-		&n.LastStatusAt, &n.LastConnectedAt, &n.ViewPosition, &n.CreatedAt, &n.UpdatedAt)
+		&n.LastStatusAt, &n.LastConnectedAt, &n.ViewPosition, &n.CreatedAt, &n.UpdatedAt,
+		&n.Provider, &n.ProviderURL, &n.CostAmount, &n.CostCurrency, &n.BillingCycle,
+		&n.NextPaymentAt, &n.BillingNotes, &n.Tags)
 	if err != nil {
 		return nil, mapErr(err)
 	}
 	if n.ActiveInboundTags == nil {
 		n.ActiveInboundTags = []string{}
+	}
+	if n.Tags == nil {
+		n.Tags = []string{}
 	}
 	return &n, nil
 }
@@ -49,6 +56,15 @@ type NodeInput struct {
 	TrafficReset      domain.TrafficResetStrategy
 	NotifyPercent     int
 	ViewPosition      int
+
+	Provider      string
+	ProviderURL   string
+	CostAmount    float64
+	CostCurrency  string
+	BillingCycle  domain.BillingCycle
+	NextPaymentAt *time.Time
+	BillingNotes  string
+	Tags          []string
 }
 
 func (s *Store) CreateNode(ctx context.Context, in NodeInput, tokenHash, tokenPreview string) (*domain.Node, error) {
@@ -56,11 +72,15 @@ func (s *Store) CreateNode(ctx context.Context, in NodeInput, tokenHash, tokenPr
 	_, err := s.pool.Exec(ctx, `INSERT INTO nodes
 		(uuid, name, address, country_code, description, token_hash, token_preview, is_disabled,
 		 config_profile_uuid, active_inbound_tags, consumption_multiplier, traffic_limit_bytes,
-		 traffic_reset_strategy, notify_percent, view_position, health)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
+		 traffic_reset_strategy, notify_percent, view_position, health,
+		 provider, provider_url, cost_amount, cost_currency, billing_cycle, next_payment_at,
+		 billing_notes, tags)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24)`,
 		id, in.Name, in.Address, in.CountryCode, in.Description, tokenHash, tokenPreview, in.IsDisabled,
 		in.ConfigProfileID, in.ActiveInboundTags, in.Consumption, in.TrafficLimitBytes,
-		in.TrafficReset, in.NotifyPercent, in.ViewPosition, domain.NodeHealthUnknown)
+		in.TrafficReset, in.NotifyPercent, in.ViewPosition, domain.NodeHealthUnknown,
+		in.Provider, in.ProviderURL, in.CostAmount, in.CostCurrency, in.BillingCycle,
+		in.NextPaymentAt, in.BillingNotes, in.Tags)
 	if err != nil {
 		return nil, mapErr(err)
 	}
@@ -70,10 +90,14 @@ func (s *Store) CreateNode(ctx context.Context, in NodeInput, tokenHash, tokenPr
 func (s *Store) UpdateNode(ctx context.Context, id string, in NodeInput) (*domain.Node, error) {
 	tag, err := s.pool.Exec(ctx, `UPDATE nodes SET name=$2, address=$3, country_code=$4, description=$5,
 		is_disabled=$6, config_profile_uuid=$7, active_inbound_tags=$8, consumption_multiplier=$9,
-		traffic_limit_bytes=$10, traffic_reset_strategy=$11, notify_percent=$12, view_position=$13, updated_at=NOW()
+		traffic_limit_bytes=$10, traffic_reset_strategy=$11, notify_percent=$12, view_position=$13,
+		provider=$14, provider_url=$15, cost_amount=$16, cost_currency=$17, billing_cycle=$18,
+		next_payment_at=$19, billing_notes=$20, tags=$21, updated_at=NOW()
 		WHERE uuid = $1`,
 		id, in.Name, in.Address, in.CountryCode, in.Description, in.IsDisabled, in.ConfigProfileID,
-		in.ActiveInboundTags, in.Consumption, in.TrafficLimitBytes, in.TrafficReset, in.NotifyPercent, in.ViewPosition)
+		in.ActiveInboundTags, in.Consumption, in.TrafficLimitBytes, in.TrafficReset, in.NotifyPercent,
+		in.ViewPosition, in.Provider, in.ProviderURL, in.CostAmount, in.CostCurrency, in.BillingCycle,
+		in.NextPaymentAt, in.BillingNotes, in.Tags)
 	if err != nil {
 		return nil, mapErr(err)
 	}

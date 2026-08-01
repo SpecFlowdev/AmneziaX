@@ -42,6 +42,10 @@ everything except that. `VIEWER` is read-only — any mutating request returns
 | Method | Path | Notes |
 |---|---|---|
 | `GET` | `/api/health` | Public liveness probe. |
+| `GET` | `/api/branding` | **Public.** Name, tagline, logo and accent, for the sign-in and subscription pages. |
+| `GET` | `/api/settings` | Full panel settings. |
+| `PUT` | `/api/settings` | Update branding, subscription title, support link and currency. |
+| `GET` | `/api/system/spend` | Infrastructure cost: monthly and yearly totals, cost per TB, per-provider breakdown and upcoming payments. |
 | `GET` | `/api/system/overview` | Counters plus panel build info. |
 | `GET` | `/api/system/stats/traffic?days=7` | Total and per-node time series. |
 | `GET` | `/api/system/stats/top-users?days=7&limit=10` | Biggest consumers. |
@@ -92,11 +96,24 @@ Create payload:
   "consumptionMultiplier": 1,
   "trafficLimitBytes": 0,
   "trafficResetStrategy": "NO_RESET",
-  "notifyPercent": 80
+  "notifyPercent": 80,
+
+  "provider": "Hetzner",
+  "providerUrl": "https://console.hetzner.cloud",
+  "costAmount": 12.5,
+  "costCurrency": "EUR",
+  "billingCycle": "MONTHLY",
+  "nextPaymentAt": "2026-09-01T00:00:00Z",
+  "billingNotes": "CX22",
+  "tags": ["eu", "primary"]
 }
 ```
 
 Leave `activeInboundTags` empty to serve every inbound of the profile.
+`billingCycle` is `NONE`, `MONTHLY`, `QUARTERLY` or `YEARLY`; costs are
+normalised onto a monthly figure so nodes on different cycles can be summed.
+A past-due `nextPaymentAt` rolls forward one cycle and leaves a
+`NODE_PAYMENT_DUE` event behind.
 
 ## Hosts
 
@@ -147,6 +164,9 @@ Leave `activeInboundTags` empty to serve every inbound of the profile.
 | `POST` | `/api/users/{uuid}/revoke` | Rolls every credential and the subscription uuid. |
 | `GET` | `/api/users/{uuid}/usage?days=30` | Hourly buckets. |
 | `GET` | `/api/users/{uuid}/links` | Rendered connection links. |
+| `GET` | `/api/users/{uuid}/devices` | Devices seen on this subscription. |
+| `DELETE` | `/api/users/{uuid}/devices` | Forget every device. |
+| `DELETE` | `/api/users/{uuid}/devices/{hwid}` | Forget one device. |
 | `POST` | `/api/users/bulk` | `{uuids, action}` where action is `enable`, `disable`, `reset-traffic` or `delete`. |
 
 List parameters: `search`, `status`, `squadUuid`, `tag`, `limit` (≤ 500),
@@ -179,6 +199,16 @@ Create payload:
 }
 ```
 
+## API tokens
+
+Owner only. For bots, billing systems and provisioning scripts.
+
+| Method | Path | Notes |
+|---|---|---|
+| `GET` | `/api/tokens` | Never returns the secret, only a preview. |
+| `POST` | `/api/tokens` | `{name, expiresAt}`. **The token is shown once.** |
+| `DELETE` | `/api/tokens/{uuid}` | |
+
 ## Administrators
 
 Owner only.
@@ -198,14 +228,26 @@ Public. The token is either the user's `subscriptionUuid` or their `shortUuid`.
 
 | Method | Path | Returns |
 |---|---|---|
-| `GET` | `/sub/{token}` | Base64 link list — what client apps import. |
-| `GET` | `/sub/{token}/links` | The same list as plain text. |
+| `GET` | `/sub/{token}` | The format the client understands — see below. |
+| `GET` | `/sub/{token}/links` | The plain link list. |
+| `GET` | `/sub/{token}/clash` | Clash / Mihomo YAML. |
+| `GET` | `/sub/{token}/singbox` | sing-box JSON. |
 | `GET` | `/sub/{token}/json` | Structured info plus links. |
 | `GET` | `/sub/{token}/info` | Same payload, used by the subscription page. |
+
+`/sub/{token}` picks its encoding from the client's `User-Agent`: Clash, Mihomo,
+Stash and FlClash get YAML; sing-box, Hiddify and Karing get JSON; everything
+else gets the base64 list. `?format=base64|plain|clash|singbox|json` overrides
+the guess.
 
 Responses carry `profile-title`, `profile-update-interval` and
 `subscription-userinfo` headers so clients can show quota and expiry. A disabled
 user gets `403`; an unknown token gets `404`.
+
+If the client sends `X-Hwid` (or `X-Device-Id`), the device is recorded against
+the user and counted towards `hwidDeviceLimit`. A new device beyond the limit
+gets `403`; a device already known always passes, and a request without the
+header is never blocked.
 
 `GET /s/{token}` (no `/sub`) serves the human-readable page with a QR code.
 

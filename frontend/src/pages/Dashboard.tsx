@@ -4,8 +4,8 @@ import { ChartLegend, StackedAreaChart, type Series } from '../components/Chart'
 import { Icon } from '../components/icons'
 import { Badge, EmptyState, Spinner, Tabs } from '../components/ui'
 import { useI18n } from '../i18n'
-import type { Node, Overview, PanelEvent, TrafficStats } from '../lib/api'
-import { bytes, duration, flag, percent, relative } from '../lib/format'
+import type { Node, Overview, PanelEvent, SpendSummary, TrafficStats } from '../lib/api'
+import { bytes, dateOnly, duration, flag, percent, relative } from '../lib/format'
 import { useFetch } from '../lib/useApi'
 
 function Stat({
@@ -41,6 +41,7 @@ export function Dashboard() {
   )
   const nodes = useFetch<Node[]>('/api/nodes', 10_000)
   const events = useFetch<PanelEvent[]>('/api/system/events?limit=12', 30_000)
+  const spend = useFetch<SpendSummary>('/api/system/spend', 60_000)
 
   const series = useMemo<Series[]>(
     () =>
@@ -128,6 +129,104 @@ export function Dashboard() {
           )}
         </div>
       </div>
+
+      {spend.data && spend.data.billedNodes > 0 && (
+        <div className="grid cols-2">
+          <div className="card">
+            <div className="card-head">
+              <Icon name="chart" size={17} />
+              <h3>{t.billing.title}</h3>
+              <div className="spacer" />
+              {spend.data.overdue > 0 && (
+                <Badge kind="danger" dot>
+                  {spend.data.overdue} {t.billing.overdue}
+                </Badge>
+              )}
+            </div>
+            <div className="card-pad stack" style={{ gap: 14 }}>
+              <div className="grid cols-2" style={{ gap: 12 }}>
+                <div className="stack">
+                  <span className="small dim">{t.billing.monthly}</span>
+                  <span style={{ fontSize: 24, fontWeight: 700 }}>
+                    {money(spend.data.monthlyTotal, spend.data.currency)}
+                  </span>
+                  <span className="small dim">
+                    {money(spend.data.yearlyTotal, spend.data.currency)} {t.billing.yearly}
+                  </span>
+                </div>
+                <div className="stack">
+                  <span className="small dim">{t.billing.costPerTb}</span>
+                  <span style={{ fontSize: 24, fontWeight: 700 }}>
+                    {spend.data.costPerTb > 0
+                      ? money(spend.data.costPerTb, spend.data.currency)
+                      : '—'}
+                  </span>
+                  <span className="small dim">
+                    {spend.data.trafficThisMonthTb.toFixed(2)} TB {t.billing.trafficThisMonth}
+                  </span>
+                </div>
+              </div>
+
+              {spend.data.byProvider.length > 0 && (
+                <>
+                  <hr className="sep" />
+                  <span className="small dim">{t.billing.byProvider}</span>
+                  {spend.data.byProvider.map((p) => (
+                    <div className="split small" key={p.provider}>
+                      <span>{p.provider}</span>
+                      <span className="dim">×{p.nodes}</span>
+                      <div style={{ flex: 1 }} />
+                      <span className="nums">{money(p.monthly, spend.data!.currency)}</span>
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="card-head">
+              <Icon name="clock" size={17} />
+              <h3>{t.billing.upcoming}</h3>
+            </div>
+            {spend.data.upcoming.length === 0 ? (
+              <EmptyState title={t.common.nothingHere} />
+            ) : (
+              <div className="table-wrap">
+                <table>
+                  <tbody>
+                    {spend.data.upcoming.map((b) => (
+                      <tr key={b.nodeUuid}>
+                        <td>
+                          <div className="stack">
+                            <strong>{b.nodeName}</strong>
+                            <span className="small dim">{b.provider || '—'}</span>
+                          </div>
+                        </td>
+                        <td className="right nums nowrap">{money(b.amount, b.currency)}</td>
+                        <td className="right nowrap" style={{ width: 1 }}>
+                          <div className="stack" style={{ alignItems: 'flex-end' }}>
+                            <span className="small">{dateOnly(b.dueAt, lang)}</span>
+                            <Badge
+                              kind={b.daysLeft < 0 ? 'danger' : b.daysLeft <= 7 ? 'warn' : 'muted'}
+                            >
+                              {b.daysLeft < 0
+                                ? f(t.billing.dueLate, { n: -b.daysLeft })
+                                : b.daysLeft === 0
+                                  ? t.billing.dueToday
+                                  : f(t.billing.dueIn, { n: b.daysLeft })}
+                            </Badge>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="grid cols-2">
         <div className="card">
@@ -259,6 +358,19 @@ export function Dashboard() {
       )}
     </div>
   )
+}
+
+/** Formats an amount with its currency, falling back to a plain number. */
+export function money(amount: number, currency: string): string {
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: 'currency',
+      currency: currency || 'USD',
+      maximumFractionDigits: amount < 100 ? 2 : 0,
+    }).format(amount)
+  } catch {
+    return `${amount.toFixed(2)} ${currency}`
+  }
 }
 
 export function NodeHealthBadge({ node }: { node: Node }) {
