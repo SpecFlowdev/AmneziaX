@@ -38,7 +38,7 @@ RUN set -eux; \
         go build -trimpath -ldflags "$LDFLAGS" -o "/out/dist/amneziax-node-linux-$arch" ./cmd/node; \
     done
 
-FROM alpine:3.20
+FROM alpine:3.24
 RUN apk add --no-cache ca-certificates tzdata wget && adduser -D -u 10001 amneziax
 COPY --from=build /out/amneziax-panel /usr/local/bin/amneziax-panel
 COPY --from=build /out/dist /usr/local/share/amneziax/dist

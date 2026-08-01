@@ -9,7 +9,7 @@ RUN CGO_ENABLED=0 go build -trimpath \
     -ldflags "-s -w -X github.com/SpecFlowdev/AmneziaX/internal/version.Version=${VERSION} -X github.com/SpecFlowdev/AmneziaX/internal/version.Commit=${COMMIT}" \
     -o /out/amneziax-node ./cmd/node
 
-FROM alpine:3.20
+FROM alpine:3.24
 ARG XRAY_VERSION=v25.1.30
 RUN apk add --no-cache ca-certificates tzdata curl unzip \
  && ARCH="$(uname -m)" \
