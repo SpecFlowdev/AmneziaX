@@ -51,7 +51,7 @@ install already contains a working VLESS + REALITY profile.
 | **Bilingual UI** | Russian and English, dark and light themes, in a deep crimson palette. |
 | **White-label branding** | Set the panel's name, logo and accent colour from Settings; they apply to the sidebar, the sign-in screen and the subscription page. |
 | **Infrastructure billing** | Record what each node costs, from which provider and on what cycle. The dashboard totals monthly spend, cost per TB and what is due next. |
-| **Client-aware subscriptions** | Xray JSON, Clash/Mihomo YAML, sing-box JSON, plain and base64, chosen from the client's User-Agent or pinned with `?format=`. |
+| **Client-aware subscriptions** | Xray JSON, Clash/Mihomo YAML, sing-box JSON, plain and base64. A client that names itself gets its own format; everything else gets the panel's configured default, and `?format=` overrides both. |
 | **Device limits** | Clients that send a hardware id are tracked and capped per user; devices are listed and can be forgotten individually. |
 | **API tokens** | Scoped tokens for bots, billing systems and provisioning scripts. |
 

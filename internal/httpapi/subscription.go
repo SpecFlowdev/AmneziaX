@@ -95,16 +95,29 @@ func applySubHeaders(w http.ResponseWriter, b subscription.Bundle) {
 	}
 }
 
-// requestedFormat honours an explicit ?format= and otherwise infers one from
-// the client's User-Agent.
-func requestedFormat(r *http.Request) subscription.Format {
+// requestedFormat decides what a subscription request is answered with, in
+// descending order of how specific the instruction is:
+//
+//  1. ?format= on the URL — whoever wrote the link said exactly what they want.
+//  2. The client's own format, when it announces itself. A Clash app is handed
+//     Clash whatever the panel prefers; anything else is simply broken.
+//  3. The panel's configured default, for clients that do not identify
+//     themselves. Empty leaves the base64 list, which every client can read.
+func (a *API) requestedFormat(r *http.Request) subscription.Format {
 	if raw := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("format"))); raw != "" {
-		f := subscription.Format(raw)
-		if f.Valid() {
+		if f := subscription.Format(raw); f.Valid() {
 			return f
 		}
 	}
-	return subscription.DetectFormat(r.UserAgent())
+	if f, ok := subscription.DetectClientFormat(r.UserAgent()); ok {
+		return f
+	}
+	if s, err := a.settings(r); err == nil {
+		if f := subscription.Format(strings.ToLower(strings.TrimSpace(s.SubscriptionFormat))); f.Valid() {
+			return f
+		}
+	}
+	return subscription.FormatBase64
 }
 
 // subscriptionEntry backs /s/{token}, the only link an operator needs to hand
@@ -150,7 +163,7 @@ func (a *API) subscription(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	format := requestedFormat(r)
+	format := a.requestedFormat(r)
 	applySubHeaders(w, bundle)
 	w.Header().Set("Content-Type", format.ContentType())
 	w.Header().Set("Cache-Control", "no-store")

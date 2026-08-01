@@ -18,6 +18,11 @@ that follows the stable channel.
   checked against xray-core itself in the test suite.
 - The subscription page links each format directly, for a client that wants a
   particular file or does not identify itself.
+- A panel-wide **subscription format** setting decides what a client that does
+  not identify itself receives — set it to Xray JSON and the subscription
+  returns configurations instead of a base64 list of links. Clients that do
+  announce themselves, Clash and sing-box, still get their own format, and
+  `?format=` on the link overrides everything.
 
 ### Fixed
 

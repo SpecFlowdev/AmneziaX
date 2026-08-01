@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/SpecFlowdev/AmneziaX/internal/domain"
+	"github.com/SpecFlowdev/AmneziaX/internal/subscription"
 )
 
 // maxLogoBytes caps the inline logo. Logos are stored as data URIs so a
@@ -86,6 +87,15 @@ func (a *API) updateSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	if len(req.Currency) > 8 {
 		writeErr(w, http.StatusBadRequest, "the currency code is too long")
+		return
+	}
+	// An empty value keeps the base64 fallback. Anything else has to be a
+	// format the panel can actually render, or every unrecognised client would
+	// start receiving an empty body.
+	req.SubscriptionFormat = strings.ToLower(strings.TrimSpace(req.SubscriptionFormat))
+	if req.SubscriptionFormat != "" &&
+		!subscription.Format(req.SubscriptionFormat).Valid() {
+		writeErr(w, http.StatusBadRequest, "unknown subscription format")
 		return
 	}
 
