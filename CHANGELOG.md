@@ -10,6 +10,16 @@ that follows the stable channel.
 
 ## [Unreleased]
 
+### Changed
+
+- A subscriber now gets one link instead of two. `/s/<uuid>` answers a browser
+  with the subscription page and a client app with the configuration, so the
+  same address can be opened, pasted or scanned. The panel had been showing both
+  that page and the raw `/sub/<uuid>` endpoint, and opening the raw one in a
+  browser downloaded a file rather than doing anything useful.
+- `/sub/<uuid>` and its format-specific paths are unchanged, so links already
+  sitting in someone's client keep working.
+
 ## [0.1.0] — 2026-08-01
 
 First release: a working control plane for a fleet of Xray servers.

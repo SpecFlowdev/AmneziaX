@@ -216,6 +216,7 @@ export const en = {
     deviceLimit: 'Device limit',
     subscription: 'Subscription',
     subscriptionUrl: 'Subscription link',
+    subscriptionUrlHint: 'One link for both: a browser opens the subscription page, an app imports the configuration.',
     revoke: 'Revoke & reissue',
     revokeConfirm:
       'Reissue every credential for {name}? The old subscription link and configs stop working immediately.',

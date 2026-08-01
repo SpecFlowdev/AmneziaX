@@ -71,8 +71,12 @@ func (a *API) view(u *domain.User) userView {
 	return userView{User: u, SubscriptionURL: a.subURL(u)}
 }
 
+// subURL is the single link an operator hands to a subscriber. /s/ answers both
+// audiences — a browser gets the subscription page, an app gets the
+// configuration — so there is only ever one address to copy, paste or scan.
+// The older /sub/ form still works for links already sitting in someone's app.
 func (a *API) subURL(u *domain.User) string {
-	return a.cfg.SubscriptionPublicURL + "/sub/" + u.SubscriptionUUID
+	return a.cfg.SubscriptionPublicURL + "/s/" + u.SubscriptionUUID
 }
 
 func newUserSecrets() postgres.UserSecrets {

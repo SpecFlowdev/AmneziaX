@@ -577,9 +577,6 @@ function UserDetail({
     [current],
   )
 
-  // The human-readable page lives in this SPA; the raw link is what apps import.
-  const pageUrl = `${window.location.origin}/s/${current.subscriptionUuid}`
-
   return (
     <Modal
       title={current.username}
@@ -681,13 +678,7 @@ function UserDetail({
             </pre>
             <CopyButton value={current.subscriptionUrl} />
           </div>
-          <span className="small dim">{t.sub.title}</span>
-          <div className="split">
-            <pre className="code-block" style={{ flex: 1, margin: 0 }}>
-              {pageUrl}
-            </pre>
-            <CopyButton value={pageUrl} />
-          </div>
+          <span className="small dim">{t.users.subscriptionUrlHint}</span>
           <span className="small dim">
             {t.users.squads}:{' '}
             {current.squads && current.squads.length > 0
