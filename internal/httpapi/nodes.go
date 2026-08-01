@@ -258,7 +258,13 @@ func (a *API) installCommand(nodeUUID, token string) string {
 			host = host[:idx]
 		}
 	}
+	// Behind Caddy the agent reaches the panel over TLS on 443, so the command
+	// has to say so — the agent defaults to plaintext.
+	tls := ""
+	if a.cfg.GRPCPublicTLS {
+		tls = " --tls"
+	}
 	return fmt.Sprintf(
-		"bash <(curl -fsSL %s/install-node.sh) --panel %s:%d --uuid %s --token %s",
-		a.cfg.PublicURL, host, a.cfg.GRPCPublicPort, nodeUUID, token)
+		"bash <(curl -fsSL %s/install-node.sh) --panel %s:%d --uuid %s --token %s%s",
+		a.cfg.PublicURL, host, a.cfg.GRPCPublicPort, nodeUUID, token, tls)
 }

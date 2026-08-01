@@ -1,12 +1,34 @@
 # Architecture
 
-AmneziaX is two programs and one database.
+AmneziaX is two programs, one database and a reverse proxy.
 
 - **`cmd/panel`** — the control plane. Serves the REST API and the embedded web
   UI on one port, and the node control stream on another. Owns all state.
 - **`cmd/node`** — the agent. Supervises one `xray-core` process and does what
   the panel tells it. Holds no state of its own beyond the config on disk.
 - **Postgres** — every user, node, host, profile, squad and traffic sample.
+- **Caddy** — the only process bound to a host port. It obtains and renews the
+  certificate and terminates TLS for everything, including the node stream.
+
+## The edge
+
+The panel publishes nothing itself; `8080` and `9090` are reachable only inside
+the Docker network. Caddy listens on 80 and 443 and splits traffic by path:
+
+```
+POST /node.v1.NodeControl/*   ──▶  h2c://panel:9090   (node control stream)
+everything else               ──▶  http://panel:8080  (API + web UI)
+```
+
+That works because a gRPC request path is `/<package>.<service>/<method>`, so
+the node service has a stable, unambiguous prefix. Agents dial the panel's
+domain on 443 with ordinary TLS; gRPC negotiates HTTP/2 through ALPN, Caddy
+re-encodes it as h2c to the backend, and the stream stays open for the lifetime
+of the agent because the proxy is configured with no read or write timeout and
+no response buffering.
+
+The upshot is that a node needs no special port, gets real certificate-backed
+transport security for free, and the panel server exposes exactly two ports.
 
 ## Repository layout
 

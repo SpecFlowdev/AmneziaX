@@ -27,9 +27,12 @@ type Panel struct {
 	// subscription page is served from a separate domain.
 	SubscriptionPublicURL string
 
-	// GRPCPublicHost/Port is what a node agent dials back on.
+	// GRPCPublicHost/Port is what a node agent dials back on. Behind the
+	// bundled Caddy this is the panel's domain on 443, and GRPCPublicTLS makes
+	// the generated install command tell the agent to dial over TLS.
 	GRPCPublicHost string
 	GRPCPublicPort int
+	GRPCPublicTLS  bool
 
 	BootstrapAdmin    string
 	BootstrapPassword string
@@ -58,6 +61,7 @@ func LoadPanel() (*Panel, error) {
 		SubscriptionPublicURL:    strings.TrimRight(env("SUBSCRIPTION_PUBLIC_URL", ""), "/"),
 		GRPCPublicHost:           env("PANEL_GRPC_PUBLIC_HOST", ""),
 		GRPCPublicPort:           envInt("PANEL_GRPC_PUBLIC_PORT", 9090),
+		GRPCPublicTLS:            envBool("PANEL_GRPC_PUBLIC_TLS", false),
 		BootstrapAdmin:           env("PANEL_ADMIN_USERNAME", "admin"),
 		BootstrapPassword:        env("PANEL_ADMIN_PASSWORD", ""),
 		HeartbeatInterval:        envDuration("NODE_HEARTBEAT_INTERVAL", 10*time.Second),

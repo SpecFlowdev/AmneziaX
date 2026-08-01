@@ -23,7 +23,8 @@ install already contains a working VLESS + REALITY profile.
 
 | | |
 |---|---|
-| **One-command install** | `install-panel.sh` brings up Postgres and the panel; the panel then hands you a one-liner for each node. |
+| **One-command install** | `install-panel.sh` asks for your domain, brings up Postgres, the panel and Caddy, and gets a certificate; the panel then hands you a one-liner for each node. |
+| **HTTPS by default** | Caddy terminates TLS for the panel *and* for the node control stream, so only ports 80 and 443 are ever open. |
 | **Panel + node architecture** | Nodes dial *out* to the panel over gRPC, so they need no inbound management port and work behind NAT. |
 | **Config profiles** | Full Xray documents, edited as JSON, validated before they ever reach a server. |
 | **Squads** | Bundle inbounds and assign them to users in one move, across any number of nodes. |
@@ -36,15 +37,25 @@ install already contains a working VLESS + REALITY profile.
 
 ## Quick start
 
+Point a DNS **A record** at your server first — the certificate is issued over
+HTTP on port 80, so the domain has to resolve before you start.
+
 On a fresh Debian, Ubuntu, Rocky or Alma server:
 
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/SpecFlowdev/AmneziaX/main/scripts/install-panel.sh)
 ```
 
-The installer sets up Docker if needed, generates every secret, starts the stack
-and prints your URL, username and password. Open the panel, sign in, and change
-the password under **Settings**.
+It asks for your domain, then installs Docker if needed, generates every secret,
+starts Postgres, the panel and Caddy, and waits for the certificate. You can also
+pass everything up front:
+
+```bash
+bash <(curl -fsSL .../install-panel.sh) --domain panel.example.com --email you@example.com -y
+```
+
+When it finishes it prints your URL, username and password. Open the panel, sign
+in, and change the password under **Settings**.
 
 Then:
 
@@ -58,18 +69,32 @@ Then:
 
 ### Ports
 
+Only two ports are exposed on the panel server:
+
 | Port | Who connects | Notes |
 |---|---|---|
-| `8080` | Administrators and subscribers | Put a TLS terminator (Caddy, nginx, Traefik) in front of it in production. |
-| `9090` | Node agents | Must be reachable from every node. |
-| inbound ports | VPN clients | Whatever your Xray inbounds listen on, on the nodes. |
+| `80` | Let's Encrypt, and browsers being redirected | Required for certificate issuance and renewal. |
+| `443` | Administrators, subscribers **and node agents** | Caddy serves the web UI, the API and the node gRPC stream on the same port. |
+| inbound ports | VPN clients | Whatever your Xray inbounds listen on — on the *nodes*, not here. |
 
-### Putting the panel behind HTTPS
+The panel itself never binds a host port: `8080` and `9090` exist only inside the
+Docker network, and Caddy is the only way in.
 
-Terminate TLS with your usual reverse proxy and point it at `127.0.0.1:8080`,
-then set `PANEL_PUBLIC_URL=https://panel.example.com` in `/opt/amneziax/.env`
-and run `docker compose --env-file .env up -d`. Subscription links and node
-install commands follow that URL.
+### How the node stream shares port 443
+
+A gRPC call to the node service arrives as `POST /node.v1.NodeControl/Connect`,
+so Caddy matches that path and forwards it to the panel's gRPC listener over
+h2c, while everything else goes to the web UI. Agents therefore dial
+`your-domain:443` over ordinary TLS — no extra port to open, and node traffic is
+encrypted with the same certificate as the panel.
+
+### Using your own reverse proxy instead
+
+If you already run nginx or Traefik, drop the `caddy` service from
+`docker-compose.yml`, publish `8080` and `9090` yourself, and set
+`PANEL_PUBLIC_URL`, `PANEL_GRPC_PUBLIC_HOST`, `PANEL_GRPC_PUBLIC_PORT` and
+`PANEL_GRPC_PUBLIC_TLS` to match how you expose them. Those four values are what
+the panel prints in node install commands and subscription links.
 
 ## Configuration
 
@@ -81,10 +106,12 @@ The panel reads its settings from the environment (`/opt/amneziax/.env`).
 | `JWT_SECRET` | — | Signing key for admin sessions. **Required.** |
 | `PANEL_HTTP_ADDR` | `:8080` | Listen address for the API and web UI. |
 | `PANEL_GRPC_ADDR` | `:9090` | Listen address for node agents. |
-| `PANEL_PUBLIC_URL` | `http://localhost:8080` | Public origin; used for subscription links and install commands. |
+| `AMNEZIAX_DOMAIN` | — | Domain Caddy serves and requests a certificate for. **Required.** |
+| `PANEL_PUBLIC_URL` | `http://localhost:8080` | Public origin; used for subscription links and install commands. Set to `https://$AMNEZIAX_DOMAIN` by the installer. |
 | `SUBSCRIPTION_PUBLIC_URL` | = `PANEL_PUBLIC_URL` | Override when subscriptions are served from another domain. |
 | `PANEL_GRPC_PUBLIC_HOST` | derived | Host a node agent dials back on. |
-| `PANEL_GRPC_PUBLIC_PORT` | `9090` | Port a node agent dials back on. |
+| `PANEL_GRPC_PUBLIC_PORT` | `9090` | Port a node agent dials back on. `443` behind Caddy. |
+| `PANEL_GRPC_PUBLIC_TLS` | `false` | Whether generated install commands tell the agent to dial over TLS. |
 | `PANEL_ADMIN_USERNAME` | `admin` | Owner account created on first boot. |
 | `PANEL_ADMIN_PASSWORD` | generated | Owner password; printed to the log once when generated. |
 | `JWT_TTL` | `24h` | Admin session lifetime. |
@@ -112,18 +139,21 @@ The node agent (`/etc/amneziax-node.env`):
 ## How it fits together
 
 ```
-                    ┌───────────────────────────────┐
-   administrator ──▶│  Panel  (REST + web UI :8080) │
-                    │         (gRPC       :9090)    │──▶ Postgres
-   subscriber   ──▶ │  /sub/<uuid>                  │
-                    └───────────────┬───────────────┘
-                                    │ persistent bidirectional stream
-                    ┌───────────────┴───────────────┐
-                    │                               │
-              ┌─────▼─────┐                   ┌─────▼─────┐
-              │  Agent    │                   │  Agent    │
-              │  xray-core│                   │  xray-core│
-              └───────────┘                   └───────────┘
+   administrator ─┐
+   subscriber   ──┤  https://your-domain      ┌──────────────────────┐
+   node agent   ──┘         :443       ──────▶│  Caddy  (TLS, ACME)  │
+                                              └──────────┬───────────┘
+                            /node.v1.NodeControl/* ──────┤────── everything else
+                                              ┌──────────▼───────────┐
+                                              │  Panel  :9090 (gRPC) │──▶ Postgres
+                                              │         :8080 (HTTP) │
+                                              └──────────┬───────────┘
+                                 persistent bidirectional stream
+                            ┌────────────────────────────┴───┐
+                      ┌─────▼─────┐                    ┌─────▼─────┐
+                      │  Agent    │                    │  Agent    │
+                      │  xray-core│                    │  xray-core│
+                      └───────────┘                    └───────────┘
 ```
 
 The agent dials the panel and keeps one stream open. The panel sends rendered
@@ -174,8 +204,10 @@ During UI work, `cd frontend && npm run dev` proxies `/api` and `/sub` to
 The panel signs admin sessions with `JWT_SECRET`, stores admin passwords with
 bcrypt and node tokens as SHA-256 digests. Subscription URLs are unguessable
 UUIDs and are the only credential a subscriber needs, so treat them as secrets.
-Serve the panel over HTTPS in production, and expose port `9090` only to your
-nodes.
+
+Everything reaches the panel through Caddy over TLS, including the node control
+stream, and the panel binds no host port of its own. That leaves 80 and 443 as
+the only attack surface on the panel server.
 
 ## License
 
