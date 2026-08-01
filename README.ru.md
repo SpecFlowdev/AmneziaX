@@ -1,10 +1,21 @@
 <div align="center">
 
-# AmneziaX
+<img src="docs/assets/header.svg" alt="AmneziaX" width="100%">
 
-**Собственная панель управления Xray-core: одна панель, много нод.**
+[![CI](https://github.com/SpecFlowdev/AmneziaX/actions/workflows/ci.yml/badge.svg)](https://github.com/SpecFlowdev/AmneziaX/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/SpecFlowdev/AmneziaX?include_prereleases&sort=semver&color=e11d48&label=%D1%80%D0%B5%D0%BB%D0%B8%D0%B7)](https://github.com/SpecFlowdev/AmneziaX/releases)
+[![License](https://img.shields.io/github/license/SpecFlowdev/AmneziaX?color=e11d48&label=%D0%BB%D0%B8%D1%86%D0%B5%D0%BD%D0%B7%D0%B8%D1%8F)](LICENSE)
 
-[English version](README.md) · [Архитектура](docs/ARCHITECTURE.md) · [Описание API](docs/API.md)
+[![Go](https://img.shields.io/badge/Go-1.25-00ADD8?logo=go&logoColor=white)](https://go.dev)
+[![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)](https://react.dev)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org)
+[![Docker](https://img.shields.io/badge/Docker-compose-2496ED?logo=docker&logoColor=white)](https://docs.docker.com/compose/)
+[![Caddy](https://img.shields.io/badge/Caddy-2-1F88C0?logo=caddy&logoColor=white)](https://caddyserver.com)
+[![gRPC](https://img.shields.io/badge/gRPC-streaming-244c5a?logo=grpc&logoColor=white)](https://grpc.io)
+[![Xray](https://img.shields.io/badge/Xray--core-VLESS%20%C2%B7%20REALITY-e11d48)](https://github.com/XTLS/Xray-core)
+
+**[English version](README.md)** · [Архитектура](docs/ARCHITECTURE.md) · [Описание API](docs/API.md) · [Список изменений](CHANGELOG.md)
 
 </div>
 
@@ -19,6 +30,10 @@ AmneziaX управляет парком серверов Xray из одной �
 
 Ставится одной командой и не требует знания Xray, чтобы начать: в свежей
 установке уже есть рабочий профиль VLESS + REALITY.
+
+<div align="center">
+  <img src="docs/assets/dashboard.png" alt="Дашборд AmneziaX" width="100%">
+</div>
 
 ## Возможности
 
@@ -151,22 +166,9 @@ gRPC-слушатель панели по h2c без таймаутов и бу�
 
 ## Как это устроено
 
-```
-   администратор ─┐  :443                   ┌──────────────────────┐
-   подписчик    ─┤ ───────────────────────▶  │  Caddy  (TLS, ACME)  │
-   агент ноды   ─┘  :9999                    └──────────┬───────────┘
-                                  :9999 ─────┤────── :443
-                                             ┌──────────▼───────────┐
-                                             │  Панель :9090 (gRPC) │──▶ Postgres
-                                             │         :8080 (HTTP) │
-                                             └──────────┬───────────┘
-                                постоянный двусторонний поток
-                           ┌────────────────────────────┴───┐
-                     ┌─────▼─────┐                    ┌─────▼─────┐
-                     │   Агент   │                    │   Агент   │
-                     │ xray-core │                    │ xray-core │
-                     └───────────┘                    └───────────┘
-```
+<div align="center">
+  <img src="docs/assets/architecture.svg" alt="Архитектура AmneziaX" width="100%">
+</div>
 
 Агент подключается к панели и держит одно соединение открытым. Панель шлёт по
 нему готовые конфигурации и команды, агент отвечает состоянием, результатами
@@ -175,6 +177,15 @@ gRPC-слушатель панели по h2c без таймаутов и бу�
 
 Модель данных и алгоритм синхронизации описаны в
 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+## Как это выглядит
+
+| Ноды | Пользователи |
+|---|---|
+| <img src="docs/assets/nodes.png" alt="Страница нод" width="100%"> | <img src="docs/assets/users.png" alt="Страница пользователей" width="100%"> |
+
+Слева — живая телеметрия по каждой ноде, однострочные команды установки,
+итоговый конфиг и логи. Справа — лимиты, сквады, устройства и ссылки подписок.
 
 ## Сборка из исходников
 
@@ -222,6 +233,13 @@ UUID и единственный «пароль» подписчика, так �
 только 80, 443 и порт нод, причём последний не отвечает ни на что, кроме сервиса
 управления.
 
+## Участие в разработке
+
+Баг-репорты, идеи и pull request-ы приветствуются — в
+[CONTRIBUTING.md](CONTRIBUTING.md) описано, как поднять окружение и что
+проверяет CI. О проблемах безопасности сообщайте по
+[SECURITY.md](SECURITY.md), а не публичным issue.
+
 ## Лицензия
 
-См. [LICENSE](LICENSE).
+MIT — см. [LICENSE](LICENSE).

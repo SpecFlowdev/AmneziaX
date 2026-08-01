@@ -1,0 +1,40 @@
+name: Feature request
+description: Suggest something the panel should be able to do
+labels: ['enhancement']
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do
+      description: The situation you are in, not the solution you have in mind.
+    validations:
+      required: true
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would help
+      description: How you would like it to work.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Nodes and infrastructure
+        - Users and access
+        - Subscriptions and clients
+        - Billing and reporting
+        - Web UI
+        - API and integrations
+        - Deployment
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What you do today instead
+      description: Any workaround you currently use.
