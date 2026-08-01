@@ -46,12 +46,12 @@ install already contains a working VLESS + REALITY profile.
 | **Hosts** | Publish one inbound behind many domains, ports, SNIs or CDNs, with per-user labels. |
 | **Live telemetry** | CPU, RAM, load, Xray uptime, online users and stacked traffic charts per node. |
 | **Quotas that enforce themselves** | Traffic limits, expiry dates and daily/weekly/monthly resets; a user who hits their limit is removed from the running config automatically. |
-| **Subscriptions** | Base64, plain-text and JSON endpoints plus a branded page with a QR code. |
+| **Subscriptions** | One link per subscriber that a browser opens as a page and an app imports as a config. |
 | **Roles** | Owner, administrator and read-only accounts. |
 | **Bilingual UI** | Russian and English, dark and light themes, in a deep crimson palette. |
 | **White-label branding** | Set the panel's name, logo and accent colour from Settings; they apply to the sidebar, the sign-in screen and the subscription page. |
 | **Infrastructure billing** | Record what each node costs, from which provider and on what cycle. The dashboard totals monthly spend, cost per TB and what is due next. |
-| **Client-aware subscriptions** | Clash/Mihomo YAML, sing-box JSON, plain and base64, chosen automatically from the client's User-Agent. |
+| **Client-aware subscriptions** | Xray JSON, Clash/Mihomo YAML, sing-box JSON, plain and base64, chosen from the client's User-Agent or pinned with `?format=`. |
 | **Device limits** | Clients that send a hardware id are tracked and capped per user; devices are listed and can be forgotten individually. |
 | **API tokens** | Scoped tokens for bots, billing systems and provisioning scripts. |
 

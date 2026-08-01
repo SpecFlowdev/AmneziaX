@@ -10,6 +10,22 @@ that follows the stable channel.
 
 ## [Unreleased]
 
+### Added
+
+- Xray JSON subscriptions — the array of complete client configurations that
+  v2rayN, v2rayNG, Happ and Streisand accept — at `?format=json` and
+  `/sub/<uuid>/json`. Every protocol and transport the panel can publish is
+  checked against xray-core itself in the test suite.
+- The subscription page links each format directly, for a client that wants a
+  particular file or does not identify itself.
+
+### Fixed
+
+- `?format=json` was accepted and then quietly answered with base64: the format
+  was declared valid but the renderer had no case for it.
+- `/sub/<uuid>/json` returned the same account summary as `/sub/<uuid>/info`
+  rather than anything a client could import.
+
 ### Changed
 
 - A subscriber now gets one link instead of two. `/s/<uuid>` answers a browser

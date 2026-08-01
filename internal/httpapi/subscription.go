@@ -169,13 +169,11 @@ func (a *API) subscriptionLinks(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte(strings.Join(subscription.Links(bundle), "\n")))
 }
 
+// subscriptionJSON serves the Xray "JSON subscription": an array of complete
+// client configurations. It used to return the same account summary as /info,
+// which made it a duplicate rather than something a client could import.
 func (a *API) subscriptionJSON(w http.ResponseWriter, r *http.Request) {
-	bundle, ok := a.subscriptionBundle(w, r)
-	if !ok {
-		return
-	}
-	applySubHeaders(w, bundle)
-	writeJSON(w, http.StatusOK, subscription.BuildInfo(bundle, a.subURL(bundle.User)))
+	a.serveFormat(w, r, subscription.FormatJSON)
 }
 
 // subscriptionInfo powers the human-facing subscription page.
