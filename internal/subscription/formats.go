@@ -40,21 +40,31 @@ func (f Format) ContentType() string {
 	}
 }
 
-// DetectFormat picks an encoding from the client's User-Agent. Clients that
-// announce themselves get their native format; everything else falls back to
-// the base64 list, which is universally understood.
-func DetectFormat(userAgent string) Format {
+// DetectClientFormat reports the format a client needs when it names itself.
+// The second return distinguishes "this client requires Clash" from "no idea
+// what this is" — the caller has a configured default for the second case, and
+// collapsing the two would apply that default to clients that cannot read it.
+func DetectClientFormat(userAgent string) (Format, bool) {
 	ua := strings.ToLower(userAgent)
 	switch {
 	case strings.Contains(ua, "clash") || strings.Contains(ua, "mihomo") ||
 		strings.Contains(ua, "stash") || strings.Contains(ua, "flclash"):
-		return FormatClash
+		return FormatClash, true
 	case strings.Contains(ua, "sing-box") || strings.Contains(ua, "singbox") ||
 		strings.Contains(ua, "hiddify") || strings.Contains(ua, "karing"):
-		return FormatSingBox
+		return FormatSingBox, true
 	default:
-		return FormatBase64
+		return "", false
 	}
+}
+
+// DetectFormat picks an encoding from the client's User-Agent, falling back to
+// the base64 list that every client understands.
+func DetectFormat(userAgent string) Format {
+	if f, ok := DetectClientFormat(userAgent); ok {
+		return f
+	}
+	return FormatBase64
 }
 
 // ---------------------------------------------------------------- clash

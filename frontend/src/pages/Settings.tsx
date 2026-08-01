@@ -285,6 +285,19 @@ function BrandingCard() {
         <Field label={t.settings.supportUrl} hint={t.common.optional}>
           <input value={draft.supportUrl} onChange={(e) => set('supportUrl', e.target.value)} />
         </Field>
+        <Field label={t.settings.subscriptionFormat} hint={t.settings.subscriptionFormatHint}>
+          <select
+            value={draft.subscriptionFormat ?? ''}
+            onChange={(e) => set('subscriptionFormat', e.target.value)}
+          >
+            <option value="">{t.settings.subscriptionFormatAuto}</option>
+            <option value="json">Xray JSON</option>
+            <option value="base64">Base64</option>
+            <option value="plain">{t.settings.subscriptionFormatPlain}</option>
+            <option value="clash">Clash / Mihomo</option>
+            <option value="singbox">sing-box</option>
+          </select>
+        </Field>
 
         <button className="btn-primary" onClick={() => void save()} disabled={busy}>
           {busy && <Spinner />}

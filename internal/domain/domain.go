@@ -66,14 +66,18 @@ type ConfigProfileInbound struct {
 // Settings holds the panel-wide knobs an operator can change at runtime,
 // including white-label branding for corporate deployments.
 type Settings struct {
-	BrandName         string    `json:"brandName"`
-	BrandTagline      string    `json:"brandTagline"`
-	BrandLogo         string    `json:"brandLogo"`
-	BrandAccent       string    `json:"brandAccent"`
-	SubscriptionTitle string    `json:"subscriptionTitle"`
-	SupportURL        string    `json:"supportUrl"`
-	Currency          string    `json:"currency"`
-	UpdatedAt         time.Time `json:"updatedAt"`
+	BrandName         string `json:"brandName"`
+	BrandTagline      string `json:"brandTagline"`
+	BrandLogo         string `json:"brandLogo"`
+	BrandAccent       string `json:"brandAccent"`
+	SubscriptionTitle string `json:"subscriptionTitle"`
+	SupportURL        string `json:"supportUrl"`
+	Currency          string `json:"currency"`
+	// SubscriptionFormat is what an unrecognised client is served. Empty keeps
+	// the base64 list, which every client can read. Clients that announce
+	// themselves — Clash, sing-box — still get their own format regardless.
+	SubscriptionFormat string    `json:"subscriptionFormat"`
+	UpdatedAt          time.Time `json:"updatedAt"`
 }
 
 // BillingCycle is how often a node has to be paid for.

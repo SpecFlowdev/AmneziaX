@@ -233,6 +233,7 @@ export interface Settings {
   subscriptionTitle: string
   supportUrl: string
   currency: string
+  subscriptionFormat: string
   updatedAt?: string
 }
 

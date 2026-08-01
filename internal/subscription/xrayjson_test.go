@@ -141,3 +141,38 @@ func TestXrayJSONAcceptedByXrayCore(t *testing.T) {
 		})
 	}
 }
+
+// DetectClientFormat has to say "I don't know" rather than guessing, because
+// the caller's fallback is an operator-chosen format that a Clash app cannot
+// read. Collapsing the two would hand that default to clients that need their
+// own.
+func TestDetectClientFormat(t *testing.T) {
+	for _, tc := range []struct {
+		ua   string
+		want Format
+		ok   bool
+	}{
+		{ua: "clash-verge/1.5", want: FormatClash, ok: true},
+		{ua: "mihomo/1.18", want: FormatClash, ok: true},
+		{ua: "Stash/2.6", want: FormatClash, ok: true},
+		{ua: "sing-box/1.9", want: FormatSingBox, ok: true},
+		{ua: "Hiddify/2.0", want: FormatSingBox, ok: true},
+		{ua: "karing/1.0", want: FormatSingBox, ok: true},
+
+		// Not a claim about what these want — a claim that we do not know, so
+		// the panel's configured default applies.
+		{ua: "v2rayNG/1.8.5", ok: false},
+		{ua: "Streisand/1.6", ok: false},
+		{ua: "", ok: false},
+	} {
+		t.Run(tc.ua, func(t *testing.T) {
+			got, ok := DetectClientFormat(tc.ua)
+			if ok != tc.ok {
+				t.Fatalf("DetectClientFormat(%q) recognised=%v, want %v", tc.ua, ok, tc.ok)
+			}
+			if ok && got != tc.want {
+				t.Fatalf("DetectClientFormat(%q) = %q, want %q", tc.ua, got, tc.want)
+			}
+		})
+	}
+}
