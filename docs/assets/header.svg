@@ -4,17 +4,13 @@
 
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#12060b"/>
-      <stop offset="55%" stop-color="#1b0a13"/>
-      <stop offset="100%" stop-color="#0b0509"/>
+      <stop offset="0%" stop-color="#17171a"/>
+      <stop offset="55%" stop-color="#131316"/>
+      <stop offset="100%" stop-color="#0a0a0c"/>
     </linearGradient>
-    <radialGradient id="glow" cx="18%" cy="0%" r="70%">
-      <stop offset="0%" stop-color="#be123c" stop-opacity="0.45"/>
+    <radialGradient id="glow" cx="14%" cy="0%" r="62%">
+      <stop offset="0%" stop-color="#be123c" stop-opacity="0.22"/>
       <stop offset="100%" stop-color="#be123c" stop-opacity="0"/>
-    </radialGradient>
-    <radialGradient id="glow2" cx="95%" cy="10%" r="55%">
-      <stop offset="0%" stop-color="#f43f6e" stop-opacity="0.2"/>
-      <stop offset="100%" stop-color="#f43f6e" stop-opacity="0"/>
     </radialGradient>
     <linearGradient id="mark" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#f43f6e"/>
@@ -25,26 +21,25 @@
 
   <rect width="900" height="190" rx="16" fill="url(#bg)"/>
   <rect width="900" height="190" rx="16" fill="url(#glow)"/>
-  <rect width="900" height="190" rx="16" fill="url(#glow2)"/>
 
   <g transform="translate(56, 52)">
     <rect width="66" height="66" rx="18" fill="url(#mark)"/>
     <path d="M17 50 L33 15 L49 50 L33 41 Z" fill="#ffffff" fill-opacity="0.96"/>
   </g>
 
-  <text x="146" y="88" fill="#fdeef3" font-size="40" font-weight="700" letter-spacing="-1">AmneziaX</text>
-  <text x="148" y="116" fill="#c99cae" font-size="15">A self-hosted control plane for Xray-core — one panel, many nodes.</text>
+  <text x="146" y="88" fill="#ececee" font-size="40" font-weight="700" letter-spacing="-1">AmneziaX</text>
+  <text x="148" y="116" fill="#a1a1ab" font-size="15">A self-hosted control plane for Xray-core — one panel, many nodes.</text>
 
-  <g font-size="11.5" fill="#fda4b8">
-    <rect x="148" y="132" width="96" height="24" rx="12" fill="#26121c" stroke="#4a1c2e"/>
+  <g font-size="11.5" fill="#c4c4cc">
+    <rect x="148" y="132" width="96" height="24" rx="12" fill="#1d1d21" stroke="#33333a"/>
     <text x="196" y="148" text-anchor="middle">One command</text>
-    <rect x="252" y="132" width="106" height="24" rx="12" fill="#26121c" stroke="#4a1c2e"/>
+    <rect x="252" y="132" width="106" height="24" rx="12" fill="#1d1d21" stroke="#33333a"/>
     <text x="305" y="148" text-anchor="middle">HTTPS by default</text>
-    <rect x="366" y="132" width="112" height="24" rx="12" fill="#26121c" stroke="#4a1c2e"/>
+    <rect x="366" y="132" width="112" height="24" rx="12" fill="#1d1d21" stroke="#33333a"/>
     <text x="422" y="148" text-anchor="middle">Nodes behind NAT</text>
-    <rect x="486" y="132" width="98" height="24" rx="12" fill="#26121c" stroke="#4a1c2e"/>
+    <rect x="486" y="132" width="98" height="24" rx="12" fill="#1d1d21" stroke="#33333a"/>
     <text x="535" y="148" text-anchor="middle">White-label</text>
-    <rect x="592" y="132" width="90" height="24" rx="12" fill="#26121c" stroke="#4a1c2e"/>
+    <rect x="592" y="132" width="90" height="24" rx="12" fill="#1d1d21" stroke="#33333a"/>
     <text x="637" y="148" text-anchor="middle">RU · EN</text>
   </g>
 </svg>

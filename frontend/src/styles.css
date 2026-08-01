@@ -1,7 +1,12 @@
 /*
- * AmneziaX visual language: deep crimson and rose over near-black, with a light
- * counterpart that keeps the same accents on white. Both themes share one set
- * of variables so components never branch on the theme.
+ * AmneziaX visual language: a neutral grey shell — near-black in dark, near-white
+ * in light — with crimson reserved for the things that are actually interactive:
+ * primary buttons, the active nav item, focus rings, meters and the logo.
+ *
+ * Surfaces deliberately carry no colour cast. A long operator session is spent
+ * reading tables, and tinting every panel makes the accent stop reading as an
+ * accent. Both themes share one set of variables so components never branch on
+ * the theme.
  */
 
 :root {
@@ -30,45 +35,46 @@
 }
 
 :root[data-theme='dark'] {
-  --bg: #0b0509;
-  --bg-deep: #070306;
-  --surface: #150a10;
-  --surface-2: #1d0e16;
-  --surface-3: #26121c;
-  --border: #3a1626;
-  --border-soft: #2a1019;
-  --text: #fdeef3;
-  --text-muted: #c99cae;
-  --text-dim: #916b7b;
+  --bg: #101013;
+  --bg-deep: #0a0a0c;
+  --surface: #17171a;
+  --surface-2: #1d1d21;
+  --surface-3: #26262b;
+  --border: #2f2f36;
+  --border-soft: #232329;
+  --text: #ececee;
+  --text-muted: #a1a1ab;
+  --text-dim: #74747e;
   --accent: var(--rose-600);
   --accent-hover: var(--rose-500);
-  --accent-soft: rgb(225 29 72 / 14%);
-  --accent-ring: rgb(244 63 110 / 35%);
-  --glow: radial-gradient(1200px 600px at 15% -10%, rgb(190 18 60 / 28%), transparent 60%),
-    radial-gradient(900px 500px at 100% 0%, rgb(244 63 110 / 12%), transparent 55%);
+  --accent-soft: rgb(225 29 72 / 13%);
+  --accent-ring: rgb(244 63 110 / 32%);
+  /* A whisper of crimson at the top corners, not a wash over the whole page. */
+  --glow: radial-gradient(900px 380px at 12% -14%, rgb(190 18 60 / 9%), transparent 62%);
   --on-accent: #fff;
+  --code: #d4d4d8;
 }
 
 :root[data-theme='light'] {
-  --bg: #fff7f9;
+  --bg: #fafafa;
   --bg-deep: #ffffff;
   --surface: #ffffff;
-  --surface-2: #fff1f5;
-  --surface-3: #ffe4ec;
-  --border: #f6cdd9;
-  --border-soft: #fbe0e8;
-  --text: #1c0a11;
-  --text-muted: #7d4257;
-  --text-dim: #a8788a;
+  --surface-2: #f5f5f6;
+  --surface-3: #eaeaec;
+  --border: #dcdce0;
+  --border-soft: #eaeaed;
+  --text: #18181b;
+  --text-muted: #52525b;
+  --text-dim: #78787f;
   --accent: var(--rose-600);
   --accent-hover: var(--rose-700);
-  --accent-soft: rgb(225 29 72 / 9%);
+  --accent-soft: rgb(225 29 72 / 8%);
   --accent-ring: rgb(225 29 72 / 25%);
-  --glow: radial-gradient(1100px 520px at 12% -12%, rgb(253 164 184 / 45%), transparent 62%),
-    radial-gradient(800px 420px at 100% 0%, rgb(255 228 236 / 90%), transparent 55%);
+  --glow: radial-gradient(900px 380px at 12% -14%, rgb(225 29 72 / 5%), transparent 62%);
   --on-accent: #fff;
-  --shadow-lg: 0 24px 60px -26px rgb(136 19 55 / 28%);
-  --shadow-sm: 0 2px 10px -5px rgb(136 19 55 / 25%);
+  --code: #3f3f46;
+  --shadow-lg: 0 24px 60px -26px rgb(24 24 27 / 22%);
+  --shadow-sm: 0 2px 10px -5px rgb(24 24 27 / 18%);
 }
 
 * {
@@ -119,7 +125,7 @@ h1, h2, h3, h4 {
   border-radius: 99px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--rose-900);
+  background: var(--text-dim);
 }
 
 /* ------------------------------------------------------------------ layout */
@@ -564,7 +570,7 @@ tbody tr:last-child td {
 .badge-danger { color: var(--danger); background: color-mix(in srgb, var(--danger) 13%, transparent); border-color: color-mix(in srgb, var(--danger) 30%, transparent); }
 .badge-info { color: var(--info); background: color-mix(in srgb, var(--info) 13%, transparent); border-color: color-mix(in srgb, var(--info) 30%, transparent); }
 .badge-muted { color: var(--text-dim); background: var(--surface-2); border-color: var(--border-soft); }
-.badge-accent { color: var(--rose-300); background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 32%, transparent); }
+.badge-accent { color: var(--accent-hover); background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 32%, transparent); }
 
 .pill {
   display: inline-flex;
@@ -603,7 +609,7 @@ tbody tr:last-child td {
   position: fixed;
   inset: 0;
   z-index: 100;
-  background: rgb(3 1 2 / 62%);
+  background: rgb(9 9 11 / 62%);
   backdrop-filter: blur(4px);
   display: grid;
   place-items: center;
@@ -724,13 +730,8 @@ tbody tr:last-child td {
   overflow-x: auto;
   white-space: pre-wrap;
   word-break: break-all;
-  color: var(--rose-200);
+  color: var(--code);
   margin: 0;
-}
-
-/* On white the pale rose loses contrast, so code takes the deep brand red. */
-:root[data-theme='light'] .code-block {
-  color: #8a1738;
 }
 
 .log-view {
