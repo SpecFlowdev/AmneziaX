@@ -345,6 +345,7 @@ export const en = {
     title: 'Your subscription',
     import: 'Import into your app',
     copyLink: 'Copy subscription link',
+    formats: 'Download a specific format',
     used: 'Used',
     remaining: 'remaining',
     expires: 'Expires',

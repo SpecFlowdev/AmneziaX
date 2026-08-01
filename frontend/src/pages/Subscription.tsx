@@ -156,6 +156,33 @@ export function Subscription() {
                 <CopyButton value={info.subscriptionUrl} />
               </div>
               <CopyButton value={info.subscriptionUrl} label={t.sub.copyLink} />
+
+              {/* The link above already gives every client the right format.
+                  These pin one explicitly, for an app that asks for a
+                  particular file or does not identify itself. */}
+              <div className="stack" style={{ gap: 6, width: '100%', alignItems: 'center' }}>
+                <span className="small dim">{t.sub.formats}</span>
+                <div className="split" style={{ gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
+                  {(
+                    [
+                      ['base64', 'Base64'],
+                      ['json', 'Xray JSON'],
+                      ['clash', 'Clash'],
+                      ['singbox', 'sing-box'],
+                    ] as const
+                  ).map(([key, label]) => (
+                    <a
+                      key={key}
+                      className="pill"
+                      href={`${info.subscriptionUrl}?format=${key}`}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {label}
+                    </a>
+                  ))}
+                </div>
+              </div>
             </div>
 
             {info.links.length > 0 && (

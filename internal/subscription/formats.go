@@ -304,6 +304,169 @@ func singBoxOutbound(u *domain.User, h domain.Host) (map[string]any, string) {
 	return ob, tag
 }
 
+// ---------------------------------------------------------------- xray json
+
+// XrayJSON renders the "JSON subscription" that v2rayN, v2rayNG, Happ and
+// Streisand accept: an array of complete Xray client configurations, one per
+// host, each ready to run as-is. It is the most faithful of the formats — a
+// vless:// link has to squeeze every stream setting through a query string,
+// while this carries the same structure xray-core actually parses.
+//
+// Every entry is self-contained on purpose. Clients present them as a server
+// list and switch between them, so an entry that leaned on a shared block would
+// stop working the moment the user picked a different one.
+func XrayJSON(b Bundle) string {
+	configs := make([]map[string]any, 0, len(b.Hosts))
+	for _, h := range b.Hosts {
+		proxy, remark := xrayOutbound(b.User, h)
+		if proxy == nil {
+			continue
+		}
+		configs = append(configs, map[string]any{
+			"remarks": remark,
+			"log":     map[string]any{"loglevel": "warning"},
+			"inbounds": []any{
+				map[string]any{
+					"tag": "socks", "protocol": "socks",
+					"listen": "127.0.0.1", "port": 10808,
+					"settings": map[string]any{"udp": true, "auth": "noauth"},
+					"sniffing": map[string]any{
+						"enabled":      true,
+						"destOverride": []string{"http", "tls", "quic"},
+						"routeOnly":    false,
+					},
+				},
+				map[string]any{
+					"tag": "http", "protocol": "http",
+					"listen": "127.0.0.1", "port": 10809,
+					"settings": map[string]any{},
+				},
+			},
+			"outbounds": []any{
+				proxy,
+				map[string]any{"tag": "direct", "protocol": "freedom", "settings": map[string]any{}},
+				map[string]any{"tag": "block", "protocol": "blackhole", "settings": map[string]any{
+					"response": map[string]any{"type": "http"},
+				}},
+			},
+			"dns": map[string]any{"servers": []any{"1.1.1.1", "8.8.8.8", "localhost"}},
+			"routing": map[string]any{
+				"domainStrategy": "IPIfNonMatch",
+				"rules": []any{
+					// Torrents over someone else's exit node get the node
+					// blocked, so they never leave through the proxy.
+					map[string]any{"type": "field", "outboundTag": "block", "protocol": []string{"bittorrent"}},
+					map[string]any{"type": "field", "outboundTag": "direct", "ip": []string{"geoip:private"}},
+				},
+			},
+		})
+	}
+
+	// An empty array parses but leaves the client with nothing and no
+	// explanation. `null` is worse. Either way the caller sees valid JSON.
+	encoded, err := json.MarshalIndent(configs, "", "  ")
+	if err != nil {
+		return "[]"
+	}
+	return string(encoded)
+}
+
+// xrayOutbound maps one host onto the proxy outbound of an Xray config.
+func xrayOutbound(u *domain.User, h domain.Host) (map[string]any, string) {
+	if h.Address == "" {
+		return nil, ""
+	}
+	remark := expandRemark(orDefault(h.Remark, h.InboundTag), u, h)
+	port := portOr443(h.Port)
+
+	ob := map[string]any{"tag": "proxy"}
+	switch strings.ToLower(h.InboundType) {
+	case "vless":
+		user := map[string]any{"id": u.VlessUUID, "encryption": "none", "level": 0}
+		if h.Flow != "" {
+			user["flow"] = h.Flow
+		}
+		ob["protocol"] = "vless"
+		ob["settings"] = map[string]any{"vnext": []any{map[string]any{
+			"address": h.Address, "port": port, "users": []any{user},
+		}}}
+	case "vmess":
+		ob["protocol"] = "vmess"
+		ob["settings"] = map[string]any{"vnext": []any{map[string]any{
+			"address": h.Address, "port": port,
+			"users": []any{map[string]any{
+				"id": u.VlessUUID, "alterId": 0, "security": "auto", "level": 0,
+			}},
+		}}}
+	case "trojan":
+		ob["protocol"] = "trojan"
+		ob["settings"] = map[string]any{"servers": []any{map[string]any{
+			"address": h.Address, "port": port, "password": u.TrojanPassword, "level": 0,
+		}}}
+	case "shadowsocks":
+		ob["protocol"] = "shadowsocks"
+		ob["settings"] = map[string]any{"servers": []any{map[string]any{
+			"address": h.Address, "port": port,
+			"method": "chacha20-ietf-poly1305", "password": u.SSPassword, "level": 0,
+		}}}
+	default:
+		return nil, ""
+	}
+
+	ob["streamSettings"] = xrayStreamSettings(h)
+	ob["mux"] = map[string]any{"enabled": false, "concurrency": -1}
+	return ob, remark
+}
+
+func xrayStreamSettings(h domain.Host) map[string]any {
+	network := networkOf(h)
+	stream := map[string]any{"network": network}
+
+	switch {
+	case h.Security == "reality":
+		stream["security"] = "reality"
+		reality := map[string]any{
+			"publicKey":   h.PublicKey,
+			"fingerprint": orDefault(h.Fingerprint, "chrome"),
+			"show":        false,
+		}
+		if h.SNI != "" {
+			reality["serverName"] = h.SNI
+		}
+		if h.ShortID != "" {
+			reality["shortId"] = h.ShortID
+		}
+		if h.SpiderX != "" {
+			reality["spiderX"] = h.SpiderX
+		}
+		stream["realitySettings"] = reality
+	case h.Security != "" && h.Security != "none":
+		stream["security"] = h.Security
+		tls := map[string]any{"allowInsecure": h.AllowInsecure}
+		if h.SNI != "" {
+			tls["serverName"] = h.SNI
+		}
+		if h.Fingerprint != "" {
+			tls["fingerprint"] = h.Fingerprint
+		}
+		if h.ALPN != "" {
+			tls["alpn"] = strings.Split(h.ALPN, ",")
+		}
+		stream["tlsSettings"] = tls
+	default:
+		stream["security"] = "none"
+	}
+
+	if network == "ws" {
+		ws := map[string]any{"path": h.Path}
+		if h.HostHeader != "" {
+			ws["headers"] = map[string]any{"Host": h.HostHeader}
+		}
+		stream["wsSettings"] = ws
+	}
+	return stream
+}
+
 // ---------------------------------------------------------------- helpers
 
 func orDefault(v, fallback string) string {
@@ -337,6 +500,8 @@ func Render(b Bundle, f Format) string {
 		return Clash(b)
 	case FormatSingBox:
 		return SingBox(b)
+	case FormatJSON:
+		return XrayJSON(b)
 	case FormatPlain:
 		return strings.Join(Links(b), "\n")
 	default:

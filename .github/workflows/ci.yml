@@ -21,6 +21,20 @@ jobs:
             echo "these files need gofmt:"; echo "$unformatted"; exit 1
           fi
       - run: go vet ./...
+      # The subscription tests check the configurations we hand to clients
+      # against xray-core itself. Without the binary those cases skip, which is
+      # not a failure — but it does mean nothing verifies the one format only
+      # xray can judge, so fetch it here.
+      - name: Fetch xray-core for config validation
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/xray"
+          curl -fsSL -o "$RUNNER_TEMP/xray/xray.zip" \
+            https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip
+          unzip -oq "$RUNNER_TEMP/xray/xray.zip" -d "$RUNNER_TEMP/xray"
+          chmod +x "$RUNNER_TEMP/xray/xray"
+          "$RUNNER_TEMP/xray/xray" version
+          echo "XRAY_BIN=$RUNNER_TEMP/xray/xray" >> "$GITHUB_ENV"
       - run: go test ./... -race
       - name: Cross-compile the agent
         run: |
