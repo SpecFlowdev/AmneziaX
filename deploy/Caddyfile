@@ -1,19 +1,42 @@
 # Caddy terminates TLS for everything AmneziaX exposes.
 #
-# Both the web panel and the node control stream live on 443. gRPC is told
-# apart by its request path — a gRPC call to NodeControl.Connect arrives as
-# POST /node.v1.NodeControl/Connect — and is forwarded to the panel's gRPC
-# listener over h2c. Everything else is the API and the web UI.
+# The web panel lives on 443 and the node control stream on its own port, both
+# under the same domain and the same certificate. Node agents therefore dial
+# your-domain:9999 over ordinary TLS, and the panel itself binds no host port.
 #
 # The installer prepends a global options block with an ACME email when one is
 # given, so this file deliberately starts at the site block.
 
+# ---------------------------------------------------------------- web panel
+
 {$AMNEZIAX_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy panel:8080
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN"
+		Referrer-Policy "same-origin"
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}
+
+# ---------------------------------------------------------------- node agents
+
+{$AMNEZIAX_DOMAIN}:{$AMNEZIAX_NODE_PORT:9999} {
+	# Only the node control service is reachable here. A gRPC call arrives as
+	# POST /node.v1.NodeControl/<method>, so anything else on this port is not
+	# an agent and gets nothing back.
 	@grpc path /node.v1.NodeControl/*
 	handle @grpc {
 		reverse_proxy h2c://panel:9090 {
-			# Node agents hold one stream open for their whole lifetime, so the
-			# proxy must never buffer or time the connection out.
+			# Agents hold one stream open for their whole lifetime, so the proxy
+			# must never buffer or time the connection out.
 			flush_interval -1
 			transport http {
 				read_timeout 0
@@ -23,15 +46,7 @@
 	}
 
 	handle {
-		encode zstd gzip
-		reverse_proxy panel:8080
-	}
-
-	header {
-		Strict-Transport-Security "max-age=31536000"
-		X-Content-Type-Options "nosniff"
-		X-Frame-Options "SAMEORIGIN"
-		Referrer-Policy "same-origin"
+		respond 404
 	}
 
 	log {

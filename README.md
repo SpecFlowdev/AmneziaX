@@ -24,7 +24,7 @@ install already contains a working VLESS + REALITY profile.
 | | |
 |---|---|
 | **One-command install** | `install-panel.sh` asks for your domain, brings up Postgres, the panel and Caddy, and gets a certificate; the panel then hands you a one-liner for each node. |
-| **HTTPS by default** | Caddy terminates TLS for the panel *and* for the node control stream, so only ports 80 and 443 are ever open. |
+| **HTTPS by default** | Caddy terminates TLS for the panel on 443 and for the node control stream on 9999, under one certificate. The panel binds no host port of its own. |
 | **Panel + node architecture** | Nodes dial *out* to the panel over gRPC, so they need no inbound management port and work behind NAT. |
 | **Config profiles** | Full Xray documents, edited as JSON, validated before they ever reach a server. |
 | **Squads** | Bundle inbounds and assign them to users in one move, across any number of nodes. |
@@ -69,24 +69,25 @@ Then:
 
 ### Ports
 
-Only two ports are exposed on the panel server:
+Three ports are exposed on the panel server, all of them owned by Caddy:
 
 | Port | Who connects | Notes |
 |---|---|---|
 | `80` | Let's Encrypt, and browsers being redirected | Required for certificate issuance and renewal. |
-| `443` | Administrators, subscribers **and node agents** | Caddy serves the web UI, the API and the node gRPC stream on the same port. |
+| `443` | Administrators and subscribers | The web UI, the API and the subscription endpoints. |
+| `9999` | Node agents | The gRPC control stream, over TLS with the same certificate. Change it with `--node-port`. |
 | inbound ports | VPN clients | Whatever your Xray inbounds listen on — on the *nodes*, not here. |
 
 The panel itself never binds a host port: `8080` and `9090` exist only inside the
 Docker network, and Caddy is the only way in.
 
-### How the node stream shares port 443
+### The node port
 
-A gRPC call to the node service arrives as `POST /node.v1.NodeControl/Connect`,
-so Caddy matches that path and forwards it to the panel's gRPC listener over
-h2c, while everything else goes to the web UI. Agents therefore dial
-`your-domain:443` over ordinary TLS — no extra port to open, and node traffic is
-encrypted with the same certificate as the panel.
+Agents dial `your-domain:9999` over ordinary TLS. Caddy serves only the node
+service there — a gRPC call arrives as `POST /node.v1.NodeControl/Connect`, and
+anything that is not that path gets a `404`, so a port scan finds nothing useful.
+Requests are forwarded to the panel's gRPC listener over h2c with no timeout and
+no buffering, because an agent holds one stream open for its whole lifetime.
 
 ### Using your own reverse proxy instead
 
@@ -107,10 +108,11 @@ The panel reads its settings from the environment (`/opt/amneziax/.env`).
 | `PANEL_HTTP_ADDR` | `:8080` | Listen address for the API and web UI. |
 | `PANEL_GRPC_ADDR` | `:9090` | Listen address for node agents. |
 | `AMNEZIAX_DOMAIN` | — | Domain Caddy serves and requests a certificate for. **Required.** |
+| `AMNEZIAX_NODE_PORT` | `9999` | Port Caddy exposes the node control stream on. |
 | `PANEL_PUBLIC_URL` | `http://localhost:8080` | Public origin; used for subscription links and install commands. Set to `https://$AMNEZIAX_DOMAIN` by the installer. |
 | `SUBSCRIPTION_PUBLIC_URL` | = `PANEL_PUBLIC_URL` | Override when subscriptions are served from another domain. |
 | `PANEL_GRPC_PUBLIC_HOST` | derived | Host a node agent dials back on. |
-| `PANEL_GRPC_PUBLIC_PORT` | `9090` | Port a node agent dials back on. `443` behind Caddy. |
+| `PANEL_GRPC_PUBLIC_PORT` | `9090` | Port a node agent dials back on. `9999` behind Caddy. |
 | `PANEL_GRPC_PUBLIC_TLS` | `false` | Whether generated install commands tell the agent to dial over TLS. |
 | `PANEL_ADMIN_USERNAME` | `admin` | Owner account created on first boot. |
 | `PANEL_ADMIN_PASSWORD` | generated | Owner password; printed to the log once when generated. |
@@ -139,11 +141,10 @@ The node agent (`/etc/amneziax-node.env`):
 ## How it fits together
 
 ```
-   administrator ─┐
-   subscriber   ──┤  https://your-domain      ┌──────────────────────┐
-   node agent   ──┘         :443       ──────▶│  Caddy  (TLS, ACME)  │
-                                              └──────────┬───────────┘
-                            /node.v1.NodeControl/* ──────┤────── everything else
+   administrator ─┐  :443                    ┌──────────────────────┐
+   subscriber   ──┤ ────────────────────────▶ │  Caddy  (TLS, ACME)  │
+   node agent   ──┘  :9999                    └──────────┬───────────┘
+                                   :9999 ─────┤────── :443
                                               ┌──────────▼───────────┐
                                               │  Panel  :9090 (gRPC) │──▶ Postgres
                                               │         :8080 (HTTP) │
@@ -206,8 +207,9 @@ bcrypt and node tokens as SHA-256 digests. Subscription URLs are unguessable
 UUIDs and are the only credential a subscriber needs, so treat them as secrets.
 
 Everything reaches the panel through Caddy over TLS, including the node control
-stream, and the panel binds no host port of its own. That leaves 80 and 443 as
-the only attack surface on the panel server.
+stream, and the panel binds no host port of its own. That leaves 80, 443 and the
+node port as the only attack surface on the panel server — and the node port
+answers nothing except the control service.
 
 ## License
 

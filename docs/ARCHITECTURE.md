@@ -13,22 +13,27 @@ AmneziaX is two programs, one database and a reverse proxy.
 ## The edge
 
 The panel publishes nothing itself; `8080` and `9090` are reachable only inside
-the Docker network. Caddy listens on 80 and 443 and splits traffic by path:
+the Docker network. Caddy owns every exposed port and serves two sites under one
+certificate:
 
 ```
-POST /node.v1.NodeControl/*   ──▶  h2c://panel:9090   (node control stream)
-everything else               ──▶  http://panel:8080  (API + web UI)
+your-domain:443    ──▶  http://panel:8080   API, web UI, subscriptions
+your-domain:9999   ──▶  h2c://panel:9090    node control stream
 ```
 
-That works because a gRPC request path is `/<package>.<service>/<method>`, so
-the node service has a stable, unambiguous prefix. Agents dial the panel's
-domain on 443 with ordinary TLS; gRPC negotiates HTTP/2 through ALPN, Caddy
-re-encodes it as h2c to the backend, and the stream stays open for the lifetime
-of the agent because the proxy is configured with no read or write timeout and
-no response buffering.
+The node site only routes `/node.v1.NodeControl/*` and answers `404` to
+everything else. That path prefix is reliable because a gRPC request path is
+always `/<package>.<service>/<method>`, so the node service is unambiguous and
+nothing else on that port is reachable.
 
-The upshot is that a node needs no special port, gets real certificate-backed
-transport security for free, and the panel server exposes exactly two ports.
+Agents dial the node port with ordinary TLS; gRPC negotiates HTTP/2 through
+ALPN, Caddy re-encodes it as h2c to the backend, and the stream stays open for
+the lifetime of the agent because that route is configured with no read or write
+timeout and no response buffering.
+
+The upshot is certificate-backed transport security for node traffic without a
+private CA, and a panel server whose entire attack surface is 80, 443 and one
+port that speaks only gRPC.
 
 ## Repository layout
 
