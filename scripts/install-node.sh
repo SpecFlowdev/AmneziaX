@@ -3,7 +3,7 @@
 # AmneziaX node installer. The panel shows the exact command to paste, e.g.
 #
 #   bash <(curl -fsSL https://panel.example.com/install-node.sh) \
-#        --panel panel.example.com:443 --uuid <node-uuid> --token <token> --tls
+#        --panel panel.example.com:9999 --uuid <node-uuid> --token <token> --tls
 #
 # It installs xray-core and the agent, registers a systemd unit and starts it.
 # The agent only makes outbound connections, so the node needs no open ports
@@ -32,7 +32,7 @@ usage() {
   cat <<EOF
 Usage: install-node.sh --panel HOST:PORT --uuid UUID --token TOKEN [options]
 
-  --panel HOST:PORT   the panel's node endpoint (its domain and 443 behind Caddy)
+  --panel HOST:PORT   the panel's node endpoint (its domain and 9999 behind Caddy)
   --uuid UUID         node uuid shown by the panel
   --token TOKEN       one-time enrolment token
   --tls               dial the panel over TLS — required behind Caddy

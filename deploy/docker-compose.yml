@@ -31,9 +31,9 @@ services:
       PANEL_GRPC_ADDR: ':9090'
       PANEL_PUBLIC_URL: https://${AMNEZIAX_DOMAIN:?AMNEZIAX_DOMAIN is required}
       SUBSCRIPTION_PUBLIC_URL: ${SUBSCRIPTION_PUBLIC_URL:-}
-      # Agents reach the panel through Caddy on 443, over TLS.
+      # Agents reach the panel through Caddy on its own port, over TLS.
       PANEL_GRPC_PUBLIC_HOST: ${AMNEZIAX_DOMAIN}
-      PANEL_GRPC_PUBLIC_PORT: '443'
+      PANEL_GRPC_PUBLIC_PORT: ${AMNEZIAX_NODE_PORT:-9999}
       PANEL_GRPC_PUBLIC_TLS: 'true'
       PANEL_ADMIN_USERNAME: ${PANEL_ADMIN_USERNAME:-admin}
       PANEL_ADMIN_PASSWORD: ${PANEL_ADMIN_PASSWORD:-}
@@ -52,10 +52,13 @@ services:
     depends_on: [panel]
     environment:
       AMNEZIAX_DOMAIN: ${AMNEZIAX_DOMAIN}
+      AMNEZIAX_NODE_PORT: ${AMNEZIAX_NODE_PORT:-9999}
     ports:
       - '80:80'
       - '443:443'
       - '443:443/udp'
+      # The node control stream, TLS-terminated by Caddy like everything else.
+      - '${AMNEZIAX_NODE_PORT:-9999}:${AMNEZIAX_NODE_PORT:-9999}'
     volumes:
       - ${CADDYFILE:-./Caddyfile}:/etc/caddy/Caddyfile:ro
       - caddy-data:/data

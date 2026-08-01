@@ -220,6 +220,6 @@ user gets `403`; an unknown token gets `404`.
 
 Node agents do not use the REST API. They open a bidirectional gRPC stream at
 `node.v1.NodeControl/Connect`, authenticated by the enrolment token in the first
-message. Behind the bundled Caddy that stream shares port 443 with the API: the
-proxy routes `/node.v1.NodeControl/*` to the panel's gRPC listener and
-everything else to the web UI. See [ARCHITECTURE.md](ARCHITECTURE.md).
+message. Behind the bundled Caddy the stream has its own TLS port — `9999` by
+default — which routes `/node.v1.NodeControl/*` to the panel's gRPC listener and
+answers `404` to anything else. See [ARCHITECTURE.md](ARCHITECTURE.md).
