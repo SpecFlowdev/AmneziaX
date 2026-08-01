@@ -9,7 +9,7 @@
 
 # The UI is compiled first so the Go build can embed it into the binary. Its
 # output is architecture-independent, so one build serves every platform.
-FROM --platform=$BUILDPLATFORM node:22-alpine AS ui
+FROM --platform=$BUILDPLATFORM node:25-alpine AS ui
 WORKDIR /ui
 COPY frontend/package.json frontend/package-lock.json* ./
 RUN npm ci --no-audit --no-fund || npm install --no-audit --no-fund
