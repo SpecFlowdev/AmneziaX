@@ -17,7 +17,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(STORAGE_KEY, theme)
     document
       .querySelector('meta[name="theme-color"]')
-      ?.setAttribute('content', theme === 'dark' ? '#0b0509' : '#fff7f9')
+      ?.setAttribute('content', theme === 'dark' ? '#101013' : '#fafafa')
   }, [theme])
 
   const value = useMemo(() => ({ theme, setTheme }), [theme])

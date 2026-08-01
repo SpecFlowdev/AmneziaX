@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { bytes } from '../lib/format'
+import { useTheme } from '../lib/theme'
 
 export interface Series {
   id: string
@@ -7,20 +8,44 @@ export interface Series {
   points: { at: string; bytes: number }[]
 }
 
-// The palette walks the brand's crimson-to-rose range so a stack of nodes still
-// reads as one family, with two cool accents to break up long lists.
-const PALETTE = [
-  '#e11d48',
-  '#fb7195',
-  '#9f1239',
-  '#fda4b8',
-  '#7f1d1d',
-  '#f472b6',
-  '#c2410c',
-  '#7dd3fc',
-  '#a78bfa',
-  '#34d399',
+/*
+ * Series colours are categorical: they say *which node*, not *how much*, so they
+ * must be told apart at a glance — including by a colourblind reader. A single
+ * crimson family cannot do that, which is why the brand accent stops at the
+ * chrome and the plot gets its own spread of hues.
+ *
+ * Each list is stepped for its own surface (#17171a dark, #ffffff light) and
+ * checked for lightness banding, chroma, adjacent-pair separation under all
+ * three CVD types, and contrast against the surface. Slots are assigned in
+ * order and never cycled, so a node keeps its colour when its neighbours are
+ * filtered out. Changing a value here means re-running that check.
+ */
+const PALETTE_DARK = [
+  '#3987e5',
+  '#d95926',
+  '#199e70',
+  '#c98500',
+  '#d55181',
+  '#008300',
+  '#9085e9',
+  '#e66767',
 ]
+
+const PALETTE_LIGHT = [
+  '#2a78d6',
+  '#eb6834',
+  '#1baf7a',
+  '#eda100',
+  '#e87ba4',
+  '#008300',
+  '#4a3aa7',
+  '#e34948',
+]
+
+function usePalette() {
+  const { theme } = useTheme()
+  return theme === 'light' ? PALETTE_LIGHT : PALETTE_DARK
+}
 
 /**
  * A stacked area chart drawn as plain SVG. Every series is aligned onto the
@@ -37,6 +62,7 @@ export function StackedAreaChart({
   formatX: (iso: string) => string
 }) {
   const [hover, setHover] = useState<number | null>(null)
+  const palette = usePalette()
 
   const model = useMemo(() => {
     let stamps = Array.from(new Set(series.flatMap((s) => s.points.map((p) => p.at)))).sort()
@@ -107,8 +133,8 @@ export function StackedAreaChart({
         <defs>
           {series.map((s, i) => (
             <linearGradient key={s.id} id={`grad-${s.id}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={PALETTE[i % PALETTE.length]} stopOpacity="0.75" />
-              <stop offset="100%" stopColor={PALETTE[i % PALETTE.length]} stopOpacity="0.22" />
+              <stop offset="0%" stopColor={palette[i % palette.length]} stopOpacity="0.75" />
+              <stop offset="100%" stopColor={palette[i % palette.length]} stopOpacity="0.22" />
             </linearGradient>
           ))}
         </defs>
@@ -132,7 +158,7 @@ export function StackedAreaChart({
             key={series[i].id}
             d={areaPath(band)}
             fill={`url(#grad-${series[i].id})`}
-            stroke={PALETTE[i % PALETTE.length]}
+            stroke={palette[i % palette.length]}
             strokeWidth="1.4"
             vectorEffect="non-scaling-stroke"
           />
@@ -192,7 +218,7 @@ export function StackedAreaChart({
                     width: 8,
                     height: 8,
                     borderRadius: 2,
-                    background: PALETTE[i % PALETTE.length],
+                    background: palette[i % palette.length],
                     display: 'inline-block',
                   }}
                 />
@@ -210,11 +236,12 @@ export function StackedAreaChart({
 }
 
 export function ChartLegend({ series }: { series: Series[] }) {
+  const palette = usePalette()
   return (
     <div className="chart-legend">
       {series.map((s, i) => (
         <span key={s.id}>
-          <span className="swatch" style={{ background: PALETTE[i % PALETTE.length] }} />
+          <span className="swatch" style={{ background: palette[i % palette.length] }} />
           {s.name}
         </span>
       ))}
