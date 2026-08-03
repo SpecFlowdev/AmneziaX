@@ -38,6 +38,10 @@ func (a *API) subscriptionBundle(w http.ResponseWriter, r *http.Request) (subscr
 	user, err := a.resolveSubscriber(r)
 	if err != nil {
 		if errors.Is(err, postgres.ErrNotFound) {
+			// Recorded rather than dropped: a token that resolves to nobody is
+			// the most interesting entry in the log — a revoked link still
+			// being polled, or somebody guessing.
+			a.logSubRequest(r, nil, http.StatusNotFound)
 			writeErr(w, http.StatusNotFound, "subscription not found")
 		} else {
 			a.storeErr(w, err)
@@ -45,6 +49,7 @@ func (a *API) subscriptionBundle(w http.ResponseWriter, r *http.Request) (subscr
 		return subscription.Bundle{}, false
 	}
 	if user.Status == domain.UserDisabled {
+		a.logSubRequest(r, user, http.StatusForbidden)
 		writeErr(w, http.StatusForbidden, "this subscription is disabled")
 		return subscription.Bundle{}, false
 	}
@@ -66,6 +71,7 @@ func (a *API) subscriptionBundle(w http.ResponseWriter, r *http.Request) (subscr
 	}
 
 	a.store.TouchSubscriptionOpen(r.Context(), user.UUID, r.UserAgent())
+	a.logSubRequest(r, user, http.StatusOK)
 
 	bundle, err := a.bundleForUser(r, user)
 	if err != nil {
@@ -228,4 +234,41 @@ func (a *API) serveFormat(w http.ResponseWriter, r *http.Request, f subscription
 	w.Header().Set("Content-Type", f.ContentType())
 	w.Header().Set("Cache-Control", "no-store")
 	_, _ = w.Write([]byte(subscription.Render(bundle, f)))
+}
+
+// logSubRequest records one fetch of a subscription link. It is best-effort by
+// construction: a subscriber getting their configuration must never fail
+// because the audit write did.
+func (a *API) logSubRequest(r *http.Request, user *domain.User, status int) {
+	rec := postgres.SubscriptionRequest{
+		Token:     strings.TrimSpace(chi.URLParam(r, "token")),
+		IP:        clientIP(r),
+		UserAgent: r.UserAgent(),
+		Format:    string(a.requestedFormat(r)),
+		Status:    status,
+		HWID:      deviceID(r),
+	}
+	if user != nil {
+		id := user.UUID
+		rec.UserID = &id
+	}
+	a.store.RecordSubscriptionRequest(r.Context(), rec)
+}
+
+// clientIP prefers what the reverse proxy reports, since the panel only ever
+// sees Caddy's own address otherwise.
+func clientIP(r *http.Request) string {
+	for _, h := range []string{"X-Forwarded-For", "X-Real-Ip"} {
+		if v := strings.TrimSpace(r.Header.Get(h)); v != "" {
+			if comma := strings.Index(v, ","); comma > 0 {
+				v = strings.TrimSpace(v[:comma])
+			}
+			return v
+		}
+	}
+	host := r.RemoteAddr
+	if i := strings.LastIndex(host, ":"); i > 0 {
+		host = host[:i]
+	}
+	return host
 }

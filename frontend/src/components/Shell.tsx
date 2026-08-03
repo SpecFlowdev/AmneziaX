@@ -46,6 +46,7 @@ export function Shell() {
         { to: '/admins', label: t.nav.admins, icon: 'shield', ownerOnly: true },
         { to: '/notifications', label: t.nav.notifications, icon: 'bell' },
         { to: '/announcements', label: t.nav.announcements, icon: 'info' },
+        { to: '/inspect', label: t.nav.inspect, icon: 'chart' },
         { to: '/events', label: t.nav.events, icon: 'activity' },
         { to: '/backup', label: t.nav.backup, icon: 'download', ownerOnly: true },
         { to: '/settings', label: t.nav.settings, icon: 'settings' },

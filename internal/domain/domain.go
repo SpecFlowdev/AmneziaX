@@ -129,7 +129,10 @@ func (c BillingCycle) Advance(from time.Time) time.Time {
 
 // Device is one client seen on a user's subscription.
 type Device struct {
-	UserID    string    `json:"userUuid"`
+	UserID string `json:"userUuid"`
+	// Username is filled by the cross-user inspector so the list is readable
+	// without a lookup per row.
+	Username  string    `json:"username,omitempty"`
 	HWID      string    `json:"hwid"`
 	UserAgent string    `json:"userAgent"`
 	Platform  string    `json:"platform"`

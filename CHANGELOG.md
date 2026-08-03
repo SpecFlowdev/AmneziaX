@@ -10,6 +10,18 @@ that follows the stable channel.
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-08-03
+
+### Added
+
+- **Inspectors.** Two questions that span every subscriber at once and were not
+  answerable from a single user's page. *Subscription requests* logs every
+  fetch — who, which client, which format was served, from what address, and
+  what the panel answered — including requests that resolved to nobody, which
+  is where a revoked link still being polled shows up. *Devices* lists every
+  known hardware id across all subscribers, searchable. Both are pruned after
+  30 days.
+
 ### Fixed
 
 - A release was published before the image it referred to existed. The job that
@@ -168,7 +180,8 @@ First release: a working control plane for a fleet of Xray servers.
   but `curl`.
 - Russian and English throughout, in dark and light themes.
 
-[Unreleased]: https://github.com/SpecFlowdev/AmneziaX/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/SpecFlowdev/AmneziaX/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/SpecFlowdev/AmneziaX/releases/tag/v0.4.0
 [0.3.0]: https://github.com/SpecFlowdev/AmneziaX/releases/tag/v0.3.0
 [0.2.0]: https://github.com/SpecFlowdev/AmneziaX/releases/tag/v0.2.0
 [0.1.1]: https://github.com/SpecFlowdev/AmneziaX/releases/tag/v0.1.1

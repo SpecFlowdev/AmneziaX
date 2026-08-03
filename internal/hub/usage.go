@@ -143,6 +143,9 @@ func (h *Hub) RunMaintenance(ctx context.Context) {
 		if err := h.store.PruneDeliveries(ctx, 14*24*time.Hour); err != nil {
 			h.log.Error("maintenance: prune deliveries", "error", err)
 		}
+		if err := h.store.PruneSubscriptionRequests(ctx, 30*24*time.Hour); err != nil {
+			h.log.Error("maintenance: prune subscription requests", "error", err)
+		}
 
 		// Nodes whose rental period has elapsed roll onto the next date and
 		// leave one event behind, so the operator sees what has to be paid.

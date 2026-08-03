@@ -296,3 +296,98 @@ func (s *Store) DeleteAnnouncement(ctx context.Context, id string) error {
 	}
 	return nil
 }
+
+// ---------------------------------------------------------------- subscription requests
+
+// SubscriptionRequest is one fetch of a subscription link.
+type SubscriptionRequest struct {
+	ID        int64     `json:"id"`
+	UserID    *string   `json:"userUuid"`
+	Username  string    `json:"username"`
+	Token     string    `json:"token"`
+	IP        string    `json:"ip"`
+	UserAgent string    `json:"userAgent"`
+	Format    string    `json:"format"`
+	Status    int       `json:"status"`
+	HWID      string    `json:"hwid"`
+	At        time.Time `json:"at"`
+}
+
+// RecordSubscriptionRequest is fire-and-forget: a subscriber fetching their
+// configuration must never fail because the audit write did.
+func (s *Store) RecordSubscriptionRequest(ctx context.Context, r SubscriptionRequest) {
+	_, _ = s.pool.Exec(ctx, `INSERT INTO subscription_requests
+		(user_id, token, ip, user_agent, format, status, hwid)
+		VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+		r.UserID, r.Token, r.IP, r.UserAgent, r.Format, r.Status, r.HWID)
+}
+
+// SubscriptionRequests lists recent fetches, newest first. userID narrows it to
+// one subscriber; failed lists only the ones that did not resolve, which is
+// where a revoked link still being polled shows up.
+func (s *Store) SubscriptionRequests(ctx context.Context, userID string, failedOnly bool, limit int) ([]SubscriptionRequest, error) {
+	if limit <= 0 || limit > 500 {
+		limit = 100
+	}
+	query := `SELECT r.id, r.user_id, COALESCE(u.username, ''), r.token, r.ip,
+		r.user_agent, r.format, r.status, r.hwid, r.at
+		FROM subscription_requests r
+		LEFT JOIN users u ON u.uuid = r.user_id
+		WHERE ($1 = '' OR r.user_id::text = $1)
+		  AND (NOT $2 OR r.status >= 400)
+		ORDER BY r.at DESC LIMIT $3`
+
+	rows, err := s.pool.Query(ctx, query, userID, failedOnly, limit)
+	if err != nil {
+		return nil, mapErr(err)
+	}
+	defer rows.Close()
+
+	out := []SubscriptionRequest{}
+	for rows.Next() {
+		var r SubscriptionRequest
+		if err := rows.Scan(&r.ID, &r.UserID, &r.Username, &r.Token, &r.IP,
+			&r.UserAgent, &r.Format, &r.Status, &r.HWID, &r.At); err != nil {
+			return nil, mapErr(err)
+		}
+		out = append(out, r)
+	}
+	return out, mapErr(rows.Err())
+}
+
+func (s *Store) PruneSubscriptionRequests(ctx context.Context, keepFor time.Duration) error {
+	_, err := s.pool.Exec(ctx,
+		`DELETE FROM subscription_requests WHERE at < NOW() - $1::interval`, keepFor.String())
+	return mapErr(err)
+}
+
+// AllDevices powers the hardware-id inspector: every known device across every
+// subscriber, rather than one user at a time.
+func (s *Store) AllDevices(ctx context.Context, search string, limit int) ([]domain.Device, error) {
+	if limit <= 0 || limit > 500 {
+		limit = 200
+	}
+	rows, err := s.pool.Query(ctx, `SELECT d.user_uuid, d.hwid, d.user_agent, d.platform,
+		d.first_seen, d.last_seen, u.username
+		FROM user_devices d JOIN users u ON u.uuid = d.user_uuid
+		WHERE $1 = '' OR d.hwid ILIKE '%'||$1||'%' OR u.username ILIKE '%'||$1||'%'
+		   OR d.platform ILIKE '%'||$1||'%'
+		ORDER BY d.last_seen DESC LIMIT $2`, search, limit)
+	if err != nil {
+		return nil, mapErr(err)
+	}
+	defer rows.Close()
+
+	out := []domain.Device{}
+	for rows.Next() {
+		var d domain.Device
+		var username string
+		if err := rows.Scan(&d.UserID, &d.HWID, &d.UserAgent, &d.Platform,
+			&d.FirstSeen, &d.LastSeen, &username); err != nil {
+			return nil, mapErr(err)
+		}
+		d.Username = username
+		out = append(out, d)
+	}
+	return out, mapErr(rows.Err())
+}
