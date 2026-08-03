@@ -49,6 +49,8 @@ install already contains a working VLESS + REALITY profile.
 | **Subscriptions** | One link per subscriber that a browser opens as a page and an app imports as a config. |
 | **Notifications** | Webhooks signed with HMAC-SHA256, and Telegram. Subscribe a channel to the events you care about, send a test delivery, and read the log of every attempt — so "the webhook never arrived" is an answerable question. |
 | **Announcements** | A scheduled notice subscribers see on their own page. Queue a maintenance window ahead of time instead of remembering to publish and then remove it. |
+| **Response rules** | Pin a format for clients the panel does not recognise on its own, matched on the User-Agent. Rules never override a client that names itself, each counts its hits, and a probe answers what a given client would actually be served. |
+| **Inspectors** | Every subscription fetch — who, which client, which format was served, from what address, and what the panel answered — including requests that resolved to nobody, which is where a revoked link still being polled shows up. Plus every known device across all subscribers. |
 | **Backup and restore** | The whole configuration in one file, and back again. Export runs in a single consistent transaction; restore replaces rather than merges, and refuses a snapshot from a different schema version rather than dropping columns in silence. |
 | **Load history** | Each node card draws CPU and memory over the last 24 hours, so you can tell "busy right now" from "busy for an hour". |
 | **Roles** | Owner, administrator and read-only accounts. |
