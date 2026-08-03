@@ -185,6 +185,20 @@ func (h *Hub) handleHeartbeat(ctx context.Context, nodeID string, hb *nodev1.Hea
 	if err != nil {
 		h.log.Error("apply heartbeat", "node", nodeID, "error", err)
 	}
+
+	// The node row only ever holds the latest reading, which answers "is it
+	// busy now" but not "has it been busy for an hour". Keep the sample too;
+	// the store buckets it by minute so a chatty agent cannot flood the table.
+	if err := h.store.RecordNodeMetric(ctx, nodeID, domain.NodeMetric{
+		CPUPercent:  hb.GetCpuUsagePercent(),
+		UsedRAM:     int64(hb.GetUsedRamBytes()),
+		TotalRAM:    int64(hb.GetTotalRamBytes()),
+		LoadAvg1:    hb.GetLoadAvg_1(),
+		OnlineUsers: int(hb.GetOnlineUsers()),
+	}); err != nil {
+		// A missing sample costs a gap in a chart, never the node's liveness.
+		h.log.Debug("record node metric", "node", nodeID, "error", err)
+	}
 }
 
 func (h *Hub) handleApplyResult(ctx context.Context, nodeID string, sess *session, res *nodev1.ApplyResult) {

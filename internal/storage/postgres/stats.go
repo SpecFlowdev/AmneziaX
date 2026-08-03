@@ -212,6 +212,13 @@ func (s *Store) LogEvent(ctx context.Context, kind domain.EventKind, actor, subj
 	}
 	_, _ = s.pool.Exec(ctx, `INSERT INTO events (kind, actor, subject, message, meta) VALUES ($1,$2,$3,$4,$5)`,
 		kind, actor, subject, message, raw)
+
+	if s.onEvent != nil {
+		s.onEvent(domain.Event{
+			Kind: kind, Actor: actor, Subject: subject, Message: message,
+			Meta: raw, CreatedAt: time.Now().UTC(),
+		})
+	}
 }
 
 func (s *Store) ListEvents(ctx context.Context, limit int, kind string) ([]domain.Event, error) {

@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/SpecFlowdev/AmneziaX/internal/domain"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -26,7 +27,16 @@ var ErrConflict = errors.New("already exists")
 
 type Store struct {
 	pool *pgxpool.Pool
+
+	// onEvent is notified after an event is recorded. Every part of the panel
+	// already funnels through LogEvent, so hooking it here is what makes
+	// notifications complete by construction: a new event kind is deliverable
+	// the moment it is logged, with nothing else to remember to wire up.
+	onEvent func(domain.Event)
 }
+
+// OnEvent registers the hook LogEvent calls. Passing nil detaches it.
+func (s *Store) OnEvent(fn func(domain.Event)) { s.onEvent = fn }
 
 func Connect(ctx context.Context, dsn string) (*Store, error) {
 	cfg, err := pgxpool.ParseConfig(dsn)

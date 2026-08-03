@@ -134,6 +134,16 @@ func (h *Hub) RunMaintenance(ctx context.Context) {
 			h.log.Error("maintenance: prune usage", "error", err)
 		}
 
+		// Heartbeat samples and delivery receipts both accumulate a row per
+		// minute per node and per notification, and neither is interesting once
+		// the window the UI draws has moved past it.
+		if err := h.store.PruneNodeMetrics(ctx, 30*24*time.Hour); err != nil {
+			h.log.Error("maintenance: prune node metrics", "error", err)
+		}
+		if err := h.store.PruneDeliveries(ctx, 14*24*time.Hour); err != nil {
+			h.log.Error("maintenance: prune deliveries", "error", err)
+		}
+
 		// Nodes whose rental period has elapsed roll onto the next date and
 		// leave one event behind, so the operator sees what has to be paid.
 		due, err := h.store.RollDuePayments(ctx)

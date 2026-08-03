@@ -20,6 +20,7 @@ import (
 	"github.com/SpecFlowdev/AmneziaX/internal/domain"
 	"github.com/SpecFlowdev/AmneziaX/internal/httpapi"
 	"github.com/SpecFlowdev/AmneziaX/internal/hub"
+	"github.com/SpecFlowdev/AmneziaX/internal/notify"
 	"github.com/SpecFlowdev/AmneziaX/internal/storage/postgres"
 	"github.com/SpecFlowdev/AmneziaX/internal/version"
 	"github.com/SpecFlowdev/AmneziaX/internal/webui"
@@ -69,8 +70,14 @@ func run() error {
 	go h.RunSyncLoop(ctx)
 	go h.RunMaintenance(ctx)
 
+	// Every event the panel records flows through the store's hook, so wiring
+	// the dispatcher here is the only place notifications need to be connected.
+	notifier := notify.New(store, log)
+	defer notifier.Close()
+	store.OnEvent(notifier.Publish)
+
 	issuer := auth.NewIssuer(cfg.JWTSecret, cfg.TokenTTL)
-	api := httpapi.New(store, h, issuer, cfg, log)
+	api := httpapi.New(store, h, issuer, cfg, log, notifier)
 
 	httpServer := &http.Server{
 		Addr:              cfg.HTTPAddr,

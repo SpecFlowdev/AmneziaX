@@ -2,6 +2,7 @@
 package httpapi
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -29,6 +30,10 @@ type API struct {
 	cfg    *config.Panel
 	log    *slog.Logger
 
+	// notifier delivers events outward. It is an interface so the API can be
+	// exercised without a live dispatcher.
+	notifier Notifier
+
 	// Settings are read on nearly every request, including unauthenticated
 	// subscription fetches, so they are cached and refreshed on write.
 	settingsMu    sync.RWMutex
@@ -36,8 +41,14 @@ type API struct {
 	settingsAt    time.Time
 }
 
-func New(store *postgres.Store, h *hub.Hub, issuer *auth.Issuer, cfg *config.Panel, log *slog.Logger) *API {
-	return &API{store: store, hub: h, issuer: issuer, cfg: cfg, log: log}
+// Notifier is the slice of the dispatcher the HTTP layer uses: everything else
+// reaches it through the event log.
+type Notifier interface {
+	Test(ctx context.Context, c domain.NotificationChannel, e domain.Event) error
+}
+
+func New(store *postgres.Store, h *hub.Hub, issuer *auth.Issuer, cfg *config.Panel, log *slog.Logger, notifier Notifier) *API {
+	return &API{store: store, hub: h, issuer: issuer, cfg: cfg, log: log, notifier: notifier}
 }
 
 const settingsTTL = 30 * time.Second
@@ -150,6 +161,7 @@ func (a *API) Router(ui http.Handler) http.Handler {
 				r.Post("/{id}/reset-traffic", a.writable(a.resetNodeTraffic))
 				r.Get("/{id}/config", a.previewNodeConfig)
 				r.Get("/{id}/logs", a.nodeLogs)
+				r.Get("/{id}/metrics", a.nodeMetrics)
 			})
 
 			r.Route("/hosts", func(r chi.Router) {
@@ -188,6 +200,23 @@ func (a *API) Router(ui http.Handler) http.Handler {
 				r.Get("/{id}/devices", a.userDevices)
 				r.Delete("/{id}/devices", a.writable(a.resetUserDevices))
 				r.Delete("/{id}/devices/{hwid}", a.writable(a.deleteUserDevice))
+			})
+
+			r.Route("/notifications", func(r chi.Router) {
+				r.Get("/events", a.eventKinds)
+				r.Get("/channels", a.listChannels)
+				r.Post("/channels", a.writable(a.createChannel))
+				r.Put("/channels/{id}", a.writable(a.updateChannel))
+				r.Delete("/channels/{id}", a.writable(a.deleteChannel))
+				r.Post("/channels/{id}/test", a.writable(a.testChannel))
+				r.Get("/channels/{id}/deliveries", a.channelDeliveries)
+			})
+
+			r.Route("/announcements", func(r chi.Router) {
+				r.Get("/", a.listAnnouncements)
+				r.Post("/", a.writable(a.createAnnouncement))
+				r.Put("/{id}", a.writable(a.updateAnnouncement))
+				r.Delete("/{id}", a.writable(a.deleteAnnouncement))
 			})
 
 			r.Route("/admins", func(r chi.Router) {

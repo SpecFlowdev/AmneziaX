@@ -389,6 +389,142 @@ const (
 	EventSettingsUpdated  EventKind = "SETTINGS_UPDATED"
 )
 
+// AllEventKinds is the list a channel picks its subscriptions from, and the
+// list the UI renders. Keeping it beside the constants means a new event kind
+// is subscribable the moment it exists.
+var AllEventKinds = []EventKind{
+	EventNodeConnected, EventNodeDisconnected, EventNodeConfigPushed, EventNodeError,
+	EventUserCreated, EventUserUpdated, EventUserDeleted, EventUserLimited, EventUserExpired,
+	EventAdminLogin, EventAdminLoginFailed, EventProfileUpdated, EventNodePaymentDue,
+	EventDeviceBlocked, EventSettingsUpdated,
+}
+
+func (k EventKind) Valid() bool {
+	for _, known := range AllEventKinds {
+		if k == known {
+			return true
+		}
+	}
+	return false
+}
+
+// ChannelKind is how a notification leaves the panel.
+type ChannelKind string
+
+const (
+	ChannelWebhook  ChannelKind = "WEBHOOK"
+	ChannelTelegram ChannelKind = "TELEGRAM"
+)
+
+func (k ChannelKind) Valid() bool {
+	return k == ChannelWebhook || k == ChannelTelegram
+}
+
+// NotificationChannel is one destination events are delivered to. Config holds
+// the transport-specific fields — a URL and signing secret, or a bot token and
+// chat id — so adding a transport does not mean adding columns.
+type NotificationChannel struct {
+	UUID   string          `json:"uuid"`
+	Name   string          `json:"name"`
+	Kind   ChannelKind     `json:"kind"`
+	Config json.RawMessage `json:"config"`
+	// Empty subscribes to everything, which is what most deployments want and
+	// avoids a channel that silently delivers nothing.
+	Events    []EventKind `json:"events"`
+	IsEnabled bool        `json:"isEnabled"`
+
+	LastOK     *bool      `json:"lastOk"`
+	LastDetail string     `json:"lastDetail"`
+	LastSentAt *time.Time `json:"lastSentAt"`
+
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+// Wants reports whether this channel should receive an event.
+func (c NotificationChannel) Wants(kind EventKind) bool {
+	if !c.IsEnabled {
+		return false
+	}
+	if len(c.Events) == 0 {
+		return true
+	}
+	for _, want := range c.Events {
+		if want == kind {
+			return true
+		}
+	}
+	return false
+}
+
+// NotificationDelivery is one attempt to reach a channel, kept so "the webhook
+// never arrived" is an answerable question.
+type NotificationDelivery struct {
+	ID         int64     `json:"id"`
+	ChannelID  string    `json:"channelUuid"`
+	EventKind  EventKind `json:"eventKind"`
+	OK         bool      `json:"ok"`
+	Detail     string    `json:"detail"`
+	Attempts   int       `json:"attempts"`
+	DurationMS int       `json:"durationMs"`
+	CreatedAt  time.Time `json:"createdAt"`
+}
+
+// NodeMetric is one heartbeat sample, kept so load can be read as a trend.
+type NodeMetric struct {
+	At          time.Time `json:"at"`
+	CPUPercent  float64   `json:"cpuPercent"`
+	UsedRAM     int64     `json:"usedRamBytes"`
+	TotalRAM    int64     `json:"totalRamBytes"`
+	LoadAvg1    float64   `json:"loadAvg1"`
+	OnlineUsers int       `json:"onlineUsers"`
+}
+
+// AnnouncementLevel tints the notice on the subscription page.
+type AnnouncementLevel string
+
+const (
+	AnnouncementInfo    AnnouncementLevel = "INFO"
+	AnnouncementWarning AnnouncementLevel = "WARNING"
+	AnnouncementDanger  AnnouncementLevel = "DANGER"
+)
+
+func (l AnnouncementLevel) Valid() bool {
+	switch l {
+	case AnnouncementInfo, AnnouncementWarning, AnnouncementDanger:
+		return true
+	}
+	return false
+}
+
+// Announcement is a notice shown to subscribers on their subscription page.
+type Announcement struct {
+	UUID      string            `json:"uuid"`
+	Title     string            `json:"title"`
+	Body      string            `json:"body"`
+	Level     AnnouncementLevel `json:"level"`
+	IsEnabled bool              `json:"isEnabled"`
+	StartsAt  *time.Time        `json:"startsAt"`
+	EndsAt    *time.Time        `json:"endsAt"`
+	CreatedAt time.Time         `json:"createdAt"`
+	UpdatedAt time.Time         `json:"updatedAt"`
+}
+
+// Live reports whether the announcement should be shown at the given moment.
+// A window with no bounds is always live, which is the common case.
+func (a Announcement) Live(now time.Time) bool {
+	if !a.IsEnabled {
+		return false
+	}
+	if a.StartsAt != nil && now.Before(*a.StartsAt) {
+		return false
+	}
+	if a.EndsAt != nil && now.After(*a.EndsAt) {
+		return false
+	}
+	return true
+}
+
 type Event struct {
 	ID        int64           `json:"id"`
 	Kind      EventKind       `json:"kind"`
