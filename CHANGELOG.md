@@ -10,6 +10,8 @@ that follows the stable channel.
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-08-03
+
 ### Added
 
 - **Sessions.** A third inspector tab showing who has carried traffic recently
@@ -227,7 +229,8 @@ First release: a working control plane for a fleet of Xray servers.
   but `curl`.
 - Russian and English throughout, in dark and light themes.
 
-[Unreleased]: https://github.com/SpecFlowdev/AmneziaX/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/SpecFlowdev/AmneziaX/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/SpecFlowdev/AmneziaX/releases/tag/v0.6.0
 [0.5.0]: https://github.com/SpecFlowdev/AmneziaX/releases/tag/v0.5.0
 [0.4.0]: https://github.com/SpecFlowdev/AmneziaX/releases/tag/v0.4.0
 [0.3.0]: https://github.com/SpecFlowdev/AmneziaX/releases/tag/v0.3.0
