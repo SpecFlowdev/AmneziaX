@@ -221,6 +221,16 @@ func (a *API) subscriptionInfo(w http.ResponseWriter, r *http.Request) {
 	}
 	info := subscription.BuildInfo(bundle, a.subURL(bundle.User))
 
+	// Defaults stay on if the settings cannot be read: a page missing its
+	// links is a worse failure than one showing them.
+	info.ShowLinks, info.ShowFormats = true, true
+	if s, err := a.settings(r); err == nil && s != nil {
+		info.ShowLinks, info.ShowFormats = s.SubPageShowLinks, s.SubPageShowFormats
+		if !info.ShowLinks {
+			info.Links = nil
+		}
+	}
+
 	// Notices are best-effort: a subscriber who cannot see this month's
 	// maintenance note is a smaller problem than one who cannot fetch their
 	// configuration at all, so a failure here never fails the request.

@@ -235,6 +235,10 @@ type Info struct {
 	// Notices an operator has published. Empty on a deployment that has never
 	// used them, so the page simply renders nothing.
 	Announcements []domain.Announcement `json:"announcements,omitempty"`
+	// Page options, so the subscriber page renders what the operator chose
+	// without a second request.
+	ShowLinks   bool `json:"showLinks"`
+	ShowFormats bool `json:"showFormats"`
 }
 
 func BuildInfo(b Bundle, subURL string) Info {

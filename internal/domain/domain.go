@@ -76,7 +76,11 @@ type Settings struct {
 	// SubscriptionFormat is what an unrecognised client is served. Empty keeps
 	// the base64 list, which every client can read. Clients that announce
 	// themselves — Clash, sing-box — still get their own format regardless.
-	SubscriptionFormat string    `json:"subscriptionFormat"`
+	SubscriptionFormat string `json:"subscriptionFormat"`
+	// What the subscriber's page offers. Both default to on, so an existing
+	// deployment looks exactly as it did.
+	SubPageShowLinks   bool      `json:"subPageShowLinks"`
+	SubPageShowFormats bool      `json:"subPageShowFormats"`
 	UpdatedAt          time.Time `json:"updatedAt"`
 }
 

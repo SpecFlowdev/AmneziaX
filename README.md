@@ -53,6 +53,7 @@ install already contains a working VLESS + REALITY profile.
 | **Inspectors** | Every subscription fetch — who, which client, which format was served, from what address, and what the panel answered — including requests that resolved to nobody, which is where a revoked link still being polled shows up. Plus every known device across all subscribers. |
 | **Backup and restore** | The whole configuration in one file, and back again. Export runs in a single consistent transaction; restore replaces rather than merges, and refuses a snapshot from a different schema version rather than dropping columns in silence. |
 | **Load history** | Each node card draws CPU and memory over the last 24 hours, so you can tell "busy right now" from "busy for an hour". |
+| **Subscription page options** | Choose what the subscriber sees on their own page — the format buttons and the raw connection links can each be hidden, and hidden links are never sent, not merely styled away. |
 | **Roles** | Owner, administrator and read-only accounts. |
 | **Bilingual UI** | Russian and English, dark and light themes. A neutral grey shell with crimson kept for the things that are actually interactive. |
 | **White-label branding** | Set the panel's name, logo and accent colour from Settings; they apply to the sidebar, the sign-in screen and the subscription page. |

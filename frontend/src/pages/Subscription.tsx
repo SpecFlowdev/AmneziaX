@@ -177,6 +177,7 @@ export function Subscription() {
               {/* The link above already gives every client the right format.
                   These pin one explicitly, for an app that asks for a
                   particular file or does not identify itself. */}
+              {info.showFormats !== false && (
               <div className="stack" style={{ gap: 6, width: '100%', alignItems: 'center' }}>
                 <span className="small dim">{t.sub.formats}</span>
                 <div className="split" style={{ gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
@@ -200,9 +201,10 @@ export function Subscription() {
                   ))}
                 </div>
               </div>
+              )}
             </div>
 
-            {info.links.length > 0 && (
+            {info.showLinks !== false && info.links.length > 0 && (
               <div className="card card-pad stack" style={{ gap: 9 }}>
                 <span className="small muted">{t.users.links}</span>
                 {info.links.map((link, i) => (

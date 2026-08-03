@@ -299,6 +299,27 @@ function BrandingCard() {
           </select>
         </Field>
 
+        <Field label={t.settings.subPage} hint={t.settings.subPageHint}>
+          <div className="stack" style={{ gap: 8 }}>
+            <label className="checkbox">
+              <input
+                type="checkbox"
+                checked={draft.subPageShowLinks ?? true}
+                onChange={(e) => set('subPageShowLinks', e.target.checked)}
+              />
+              {t.settings.subPageLinks}
+            </label>
+            <label className="checkbox">
+              <input
+                type="checkbox"
+                checked={draft.subPageShowFormats ?? true}
+                onChange={(e) => set('subPageShowFormats', e.target.checked)}
+              />
+              {t.settings.subPageFormats}
+            </label>
+          </div>
+        </Field>
+
         <button className="btn-primary" onClick={() => void save()} disabled={busy}>
           {busy && <Spinner />}
           {t.common.save}

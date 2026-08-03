@@ -234,6 +234,8 @@ export interface Settings {
   supportUrl: string
   currency: string
   subscriptionFormat: string
+  subPageShowLinks: boolean
+  subPageShowFormats: boolean
   updatedAt?: string
 }
 
@@ -337,6 +339,8 @@ export interface SubscriptionInfo {
   subscriptionUrl: string
   links: string[]
   announcements?: Announcement[]
+  showLinks?: boolean
+  showFormats?: boolean
   title: string
   supportUrl?: string
   daysLeft?: number

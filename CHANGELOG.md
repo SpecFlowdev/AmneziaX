@@ -10,6 +10,16 @@ that follows the stable channel.
 
 ## [Unreleased]
 
+### Added
+
+- **Subscription page options.** The subscriber's page was fixed for everyone:
+  QR, link, format buttons and the raw `vless://` connection strings. Handing
+  those to a non-technical subscriber invites them to paste the wrong one, and
+  an operator supporting such users had no way to hide them. Two toggles in
+  Settings now control the format buttons and the connection links. Hiding the
+  links removes them from the payload rather than from the markup — a value
+  that is not sent cannot be read out of the page source.
+
 ## [0.5.0] — 2026-08-03
 
 ### Added
