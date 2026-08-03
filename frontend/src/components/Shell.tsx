@@ -44,6 +44,7 @@ export function Shell() {
       title: t.nav.system,
       items: [
         { to: '/admins', label: t.nav.admins, icon: 'shield', ownerOnly: true },
+        { to: '/notifications', label: t.nav.notifications, icon: 'bell' },
         { to: '/events', label: t.nav.events, icon: 'activity' },
         { to: '/settings', label: t.nav.settings, icon: 'settings' },
       ],

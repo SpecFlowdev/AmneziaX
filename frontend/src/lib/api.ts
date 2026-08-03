@@ -340,3 +340,31 @@ export interface SubscriptionInfo {
   supportUrl?: string
   daysLeft?: number
 }
+
+export interface NotificationChannel {
+  uuid: string
+  name: string
+  kind: 'WEBHOOK' | 'TELEGRAM'
+  /** Secrets never come back from the API; only the non-secret keys appear. */
+  config: { url?: string; chatId?: string }
+  hasSecret: boolean
+  events: string[]
+  eventCount: number
+  isEnabled: boolean
+  lastOk: boolean | null
+  lastDetail: string
+  lastSentAt: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface NotificationDelivery {
+  id: number
+  channelUuid: string
+  eventKind: string
+  ok: boolean
+  detail: string
+  attempts: number
+  durationMs: number
+  createdAt: string
+}
