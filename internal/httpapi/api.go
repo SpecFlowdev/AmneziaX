@@ -212,6 +212,14 @@ func (a *API) Router(ui http.Handler) http.Handler {
 
 			// A snapshot carries every credential in the deployment, so both
 			// halves are owner-only.
+			r.Route("/rules", func(r chi.Router) {
+				r.Get("/", a.listRules)
+				r.Get("/test", a.testRule)
+				r.Post("/", a.writable(a.createRule))
+				r.Put("/{id}", a.writable(a.updateRule))
+				r.Delete("/{id}", a.writable(a.deleteRule))
+			})
+
 			r.Route("/inspect", func(r chi.Router) {
 				r.Get("/devices", a.inspectDevices)
 				r.Get("/subscriptions", a.inspectSubscriptionRequests)

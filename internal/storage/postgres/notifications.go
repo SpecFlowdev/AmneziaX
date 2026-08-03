@@ -391,3 +391,112 @@ func (s *Store) AllDevices(ctx context.Context, search string, limit int) ([]dom
 	}
 	return out, mapErr(rows.Err())
 }
+
+// ---------------------------------------------------------------- response rules
+
+// ResponseRule maps a client to the format it should be served.
+type ResponseRule struct {
+	UUID      string    `json:"uuid"`
+	Name      string    `json:"name"`
+	MatchUA   string    `json:"matchUserAgent"`
+	Format    string    `json:"format"`
+	IsEnabled bool      `json:"isEnabled"`
+	Priority  int       `json:"priority"`
+	Hits      int64     `json:"hits"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+const ruleColumns = `uuid, name, match_ua, format, is_enabled, priority, hits, created_at, updated_at`
+
+func scanRule(row interface{ Scan(...any) error }) (*ResponseRule, error) {
+	var r ResponseRule
+	err := row.Scan(&r.UUID, &r.Name, &r.MatchUA, &r.Format, &r.IsEnabled,
+		&r.Priority, &r.Hits, &r.CreatedAt, &r.UpdatedAt)
+	if err != nil {
+		return nil, mapErr(err)
+	}
+	return &r, nil
+}
+
+func (s *Store) ListRules(ctx context.Context) ([]ResponseRule, error) {
+	rows, err := s.pool.Query(ctx, `SELECT `+ruleColumns+
+		` FROM response_rules ORDER BY priority, created_at`)
+	if err != nil {
+		return nil, mapErr(err)
+	}
+	defer rows.Close()
+
+	out := []ResponseRule{}
+	for rows.Next() {
+		r, err := scanRule(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, *r)
+	}
+	return out, mapErr(rows.Err())
+}
+
+// MatchRule finds the first enabled rule whose pattern appears in the user
+// agent, and counts the hit. Matching happens in SQL so the subscription path
+// stays one round trip no matter how many rules exist.
+func (s *Store) MatchRule(ctx context.Context, userAgent string) (string, bool) {
+	if userAgent == "" {
+		return "", false
+	}
+	var id, format string
+	err := s.pool.QueryRow(ctx, `SELECT uuid, format FROM response_rules
+		WHERE is_enabled AND match_ua <> '' AND $1 ILIKE '%'||match_ua||'%'
+		ORDER BY priority, created_at LIMIT 1`, userAgent).Scan(&id, &format)
+	if err != nil {
+		return "", false
+	}
+	// Counting a hit is what makes a rule debuggable: a rule that never fires
+	// looks identical to a correct one until you can see it has never fired.
+	_, _ = s.pool.Exec(ctx, `UPDATE response_rules SET hits = hits + 1 WHERE uuid = $1`, id)
+	return format, true
+}
+
+// PreviewRule answers the same question as MatchRule without recording a hit,
+// for the log line and for the operator's "what would this client get" probe.
+func (s *Store) PreviewRule(ctx context.Context, userAgent string) (string, bool) {
+	if userAgent == "" {
+		return "", false
+	}
+	var format string
+	err := s.pool.QueryRow(ctx, `SELECT format FROM response_rules
+		WHERE is_enabled AND match_ua <> '' AND $1 ILIKE '%'||match_ua||'%'
+		ORDER BY priority, created_at LIMIT 1`, userAgent).Scan(&format)
+	if err != nil {
+		return "", false
+	}
+	return format, true
+}
+
+func (s *Store) CreateRule(ctx context.Context, r ResponseRule) (*ResponseRule, error) {
+	row := s.pool.QueryRow(ctx, `INSERT INTO response_rules
+		(name, match_ua, format, is_enabled, priority)
+		VALUES ($1,$2,$3,$4,$5) RETURNING `+ruleColumns,
+		r.Name, r.MatchUA, r.Format, r.IsEnabled, r.Priority)
+	return scanRule(row)
+}
+
+func (s *Store) UpdateRule(ctx context.Context, id string, r ResponseRule) (*ResponseRule, error) {
+	row := s.pool.QueryRow(ctx, `UPDATE response_rules SET
+		name = $2, match_ua = $3, format = $4, is_enabled = $5, priority = $6, updated_at = NOW()
+		WHERE uuid = $1 RETURNING `+ruleColumns,
+		id, r.Name, r.MatchUA, r.Format, r.IsEnabled, r.Priority)
+	return scanRule(row)
+}
+
+func (s *Store) DeleteRule(ctx context.Context, id string) error {
+	tag, err := s.pool.Exec(ctx, `DELETE FROM response_rules WHERE uuid = $1`, id)
+	if err != nil {
+		return mapErr(err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}

@@ -107,9 +107,22 @@ func applySubHeaders(w http.ResponseWriter, b subscription.Bundle) {
 //  1. ?format= on the URL — whoever wrote the link said exactly what they want.
 //  2. The client's own format, when it announces itself. A Clash app is handed
 //     Clash whatever the panel prefers; anything else is simply broken.
-//  3. The panel's configured default, for clients that do not identify
-//     themselves. Empty leaves the base64 list, which every client can read.
+//  3. An operator's response rule matching the User-Agent. This sits below the
+//     built-in detection deliberately: a rule is for clients the panel does not
+//     recognise, and letting one override a known Clash client would only ever
+//     break it.
+//  4. The panel's configured default, for everything else. Empty leaves the
+//     base64 list, which every client can read.
 func (a *API) requestedFormat(r *http.Request) subscription.Format {
+	return a.formatFor(r, true)
+}
+
+// formatFor is requestedFormat with the hit counter made optional. The count
+// has to happen exactly once per request: the answer is needed twice — once to
+// serve and once to log — and a preview must not count at all, or the number
+// that tells an operator whether a rule ever fires is the one thing they
+// cannot trust.
+func (a *API) formatFor(r *http.Request, count bool) subscription.Format {
 	if raw := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("format"))); raw != "" {
 		if f := subscription.Format(raw); f.Valid() {
 			return f
@@ -117,6 +130,11 @@ func (a *API) requestedFormat(r *http.Request) subscription.Format {
 	}
 	if f, ok := subscription.DetectClientFormat(r.UserAgent()); ok {
 		return f
+	}
+	if raw, ok := a.matchRule(r, count); ok {
+		if f := subscription.Format(strings.ToLower(strings.TrimSpace(raw))); f.Valid() {
+			return f
+		}
 	}
 	if s, err := a.settings(r); err == nil {
 		if f := subscription.Format(strings.ToLower(strings.TrimSpace(s.SubscriptionFormat))); f.Valid() {
@@ -244,9 +262,11 @@ func (a *API) logSubRequest(r *http.Request, user *domain.User, status int) {
 		Token:     strings.TrimSpace(chi.URLParam(r, "token")),
 		IP:        clientIP(r),
 		UserAgent: r.UserAgent(),
-		Format:    string(a.requestedFormat(r)),
-		Status:    status,
-		HWID:      deviceID(r),
+		// Preview, not the counting path: this request has already been
+		// resolved once, and asking again would count the same hit twice.
+		Format: string(a.formatFor(r, false)),
+		Status: status,
+		HWID:   deviceID(r),
 	}
 	if user != nil {
 		id := user.UUID
@@ -271,4 +291,12 @@ func clientIP(r *http.Request) string {
 		host = host[:i]
 	}
 	return host
+}
+
+// matchRule consults the operator's rules, counting the hit only when asked.
+func (a *API) matchRule(r *http.Request, count bool) (string, bool) {
+	if count {
+		return a.store.MatchRule(r.Context(), r.UserAgent())
+	}
+	return a.store.PreviewRule(r.Context(), r.UserAgent())
 }
