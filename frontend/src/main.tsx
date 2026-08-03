@@ -14,6 +14,7 @@ import { Notifications } from './pages/Notifications'
 import { Announcements } from './pages/Announcements'
 import { Backup } from './pages/Backup'
 import { Inspect } from './pages/Inspect'
+import { Rules } from './pages/Rules'
 import { Hosts } from './pages/Hosts'
 import { Login } from './pages/Login'
 import { Nodes } from './pages/Nodes'
@@ -51,6 +52,7 @@ function AdminArea() {
         <Route path="announcements" element={<Announcements />} />
         <Route path="backup" element={<Backup />} />
         <Route path="inspect" element={<Inspect />} />
+        <Route path="rules" element={<Rules />} />
         <Route path="settings" element={<Settings />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
