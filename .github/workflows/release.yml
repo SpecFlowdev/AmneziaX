@@ -86,7 +86,13 @@ jobs:
           cache-to: type=gha,mode=max
 
   binaries:
-    needs: meta
+    # Waits for the image on purpose. This job is what publishes the GitHub
+    # release, and the two ran in parallel: binaries finish in about a minute
+    # while the multi-arch image takes three or four. For those minutes a
+    # release was announced that :latest did not yet point at, so anyone
+    # installing in that window got the previous version and no way to tell.
+    # A release should never be visible before the artifacts it names exist.
+    needs: [meta, image]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

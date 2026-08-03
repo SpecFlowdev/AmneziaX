@@ -10,6 +10,15 @@ that follows the stable channel.
 
 ## [Unreleased]
 
+### Fixed
+
+- A release was published before the image it referred to existed. The job that
+  creates the GitHub release ran in parallel with the image build and finished
+  about three minutes earlier, so for those minutes `v0.3.0` was visible while
+  `:latest` still pointed at `0.2.0` — and anyone installing in that window got
+  the previous version with nothing to indicate it. The release now waits for
+  the image.
+
 ## [0.3.0] — 2026-08-03
 
 ### Added
