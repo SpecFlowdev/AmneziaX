@@ -10,6 +10,8 @@ that follows the stable channel.
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-08-03
+
 ### Added
 
 - **Backup and restore.** One file holds the whole configuration — settings,
@@ -29,6 +31,19 @@ that follows the stable channel.
 - Node load over the last 24 hours is drawn on each node card. CPU and memory
   share one 0–100% axis, the x axis is real time so an outage leaves a gap,
   and the two series differ in dash pattern as well as hue.
+
+### Changed
+
+- The interface is quieter. Cards had a border, a shadow and a translucent
+  tint all saying the same thing, so the page read as boxes inside boxes;
+  the hairline stays and the rest is gone. Primary buttons, the logo mark and
+  the traffic meter lose their gradients and coloured shadows for one flat
+  fill. The active navigation item is a rule down its left edge instead of a
+  tinted pill competing with real buttons. Also removed: the crimson corner
+  wash, the backdrop blurs behind the sidebar and topbar, and the 700-weight
+  wide-tracked section labels. Corner radii drop from 14px to 10px.
+- Both READMEs describe the current panel again — they had not moved since the
+  first release — with screenshots retaken against the reworked interface.
 
 ## [0.2.0] — 2026-08-03
 
@@ -144,7 +159,8 @@ First release: a working control plane for a fleet of Xray servers.
   but `curl`.
 - Russian and English throughout, in dark and light themes.
 
-[Unreleased]: https://github.com/SpecFlowdev/AmneziaX/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/SpecFlowdev/AmneziaX/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/SpecFlowdev/AmneziaX/releases/tag/v0.3.0
 [0.2.0]: https://github.com/SpecFlowdev/AmneziaX/releases/tag/v0.2.0
 [0.1.1]: https://github.com/SpecFlowdev/AmneziaX/releases/tag/v0.1.1
 [0.1.0]: https://github.com/SpecFlowdev/AmneziaX/releases/tag/v0.1.0
