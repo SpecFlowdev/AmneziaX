@@ -232,6 +232,9 @@ type Info struct {
 	Title           string     `json:"title"`
 	SupportURL      string     `json:"supportUrl,omitempty"`
 	DaysLeft        *int       `json:"daysLeft,omitempty"`
+	// Notices an operator has published. Empty on a deployment that has never
+	// used them, so the page simply renders nothing.
+	Announcements []domain.Announcement `json:"announcements,omitempty"`
 }
 
 func BuildInfo(b Bundle, subURL string) Info {

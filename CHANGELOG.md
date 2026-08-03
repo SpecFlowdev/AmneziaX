@@ -10,6 +10,25 @@ that follows the stable channel.
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-08-03
+
+### Added
+
+- **Notifications.** Events now leave the panel instead of only being recorded.
+  Webhooks are signed with HMAC-SHA256 over the timestamp and the exact bytes
+  sent, so a receiver can tell a real delivery from anyone who learned the URL;
+  Telegram messages escape HTML, because parse_mode turns a username into
+  markup. Retries distinguish "understood and refused" from "try later" — a 4xx
+  is written off after one attempt, a 5xx or 429 gets three with exponential
+  backoff — and every attempt lands in a delivery log, so "the webhook never
+  arrived" stops being unanswerable. Secrets are write-only.
+- **Announcements.** A scheduled notice shown to subscribers on their own page,
+  so an operator can warn about maintenance without messaging everyone. A
+  window that has not opened yet is stored but never served.
+- Node heartbeat samples are kept. The nodes table only held the latest
+  reading, which says a node is at 90% CPU but not whether it has been there
+  for an hour. Samples are bucketed by minute and pruned after 30 days.
+
 ## [0.1.1] — 2026-08-02
 
 ### Added
@@ -105,6 +124,7 @@ First release: a working control plane for a fleet of Xray servers.
   but `curl`.
 - Russian and English throughout, in dark and light themes.
 
-[Unreleased]: https://github.com/SpecFlowdev/AmneziaX/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/SpecFlowdev/AmneziaX/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/SpecFlowdev/AmneziaX/releases/tag/v0.2.0
 [0.1.1]: https://github.com/SpecFlowdev/AmneziaX/releases/tag/v0.1.1
 [0.1.0]: https://github.com/SpecFlowdev/AmneziaX/releases/tag/v0.1.0

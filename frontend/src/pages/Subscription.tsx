@@ -138,6 +138,23 @@ export function Subscription() {
               )}
             </div>
 
+            {(info.announcements ?? []).map((a) => (
+              <div
+                key={a.uuid}
+                className="card card-pad stack"
+                style={{ gap: 6, borderLeft: `3px solid ${
+                  a.level === 'DANGER'
+                    ? 'var(--danger)'
+                    : a.level === 'WARNING'
+                      ? 'var(--warn)'
+                      : 'var(--accent)'
+                }` }}
+              >
+                {a.title && <strong>{a.title}</strong>}
+                <span className="small" style={{ whiteSpace: 'pre-wrap' }}>{a.body}</span>
+              </div>
+            ))}
+
             <div className="card card-pad stack" style={{ gap: 14, alignItems: 'center' }}>
               <span className="small muted">{t.sub.import}</span>
               {qr && (

@@ -11,6 +11,7 @@ import { Admins } from './pages/Admins'
 import { Dashboard } from './pages/Dashboard'
 import { Events } from './pages/Events'
 import { Notifications } from './pages/Notifications'
+import { Announcements } from './pages/Announcements'
 import { Hosts } from './pages/Hosts'
 import { Login } from './pages/Login'
 import { Nodes } from './pages/Nodes'
@@ -45,6 +46,7 @@ function AdminArea() {
         <Route path="admins" element={<Admins />} />
         <Route path="events" element={<Events />} />
         <Route path="notifications" element={<Notifications />} />
+        <Route path="announcements" element={<Announcements />} />
         <Route path="settings" element={<Settings />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

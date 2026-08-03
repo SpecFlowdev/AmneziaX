@@ -336,6 +336,7 @@ export interface SubscriptionInfo {
   expireAt: string | null
   subscriptionUrl: string
   links: string[]
+  announcements?: Announcement[]
   title: string
   supportUrl?: string
   daysLeft?: number
@@ -367,4 +368,16 @@ export interface NotificationDelivery {
   attempts: number
   durationMs: number
   createdAt: string
+}
+
+export interface Announcement {
+  uuid: string
+  title: string
+  body: string
+  level: 'INFO' | 'WARNING' | 'DANGER'
+  isEnabled: boolean
+  startsAt: string | null
+  endsAt: string | null
+  createdAt: string
+  updatedAt: string
 }

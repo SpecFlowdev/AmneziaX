@@ -195,7 +195,18 @@ func (a *API) subscriptionInfo(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	writeJSON(w, http.StatusOK, subscription.BuildInfo(bundle, a.subURL(bundle.User)))
+	info := subscription.BuildInfo(bundle, a.subURL(bundle.User))
+
+	// Notices are best-effort: a subscriber who cannot see this month's
+	// maintenance note is a smaller problem than one who cannot fetch their
+	// configuration at all, so a failure here never fails the request.
+	if notices, err := a.store.LiveAnnouncements(r.Context()); err != nil {
+		a.log.Warn("cannot load announcements", "error", err)
+	} else {
+		info.Announcements = notices
+	}
+
+	writeJSON(w, http.StatusOK, info)
 }
 
 // subscriptionClash and subscriptionSingBox let an operator hand out a link
