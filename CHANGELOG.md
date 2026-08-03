@@ -10,6 +10,22 @@ that follows the stable channel.
 
 ## [Unreleased]
 
+### Changed
+
+- **The docs caught up with the code.** `API.md` had been left behind three
+  releases: notifications, announcements, response rules, the inspectors,
+  backup and node metrics were all reachable and none of them were written
+  down, and `/sub/{token}/json` was still described as "structured info plus
+  links" when it now returns a full Xray client configuration. `ARCHITECTURE.md`
+  likewise stopped at traffic accounting. Both now cover every endpoint the
+  router serves — checked by walking the route table rather than by reading —
+  and the architecture notes state plainly what sessions cannot show and why.
+- **Screenshots retaken.** The inspectors picture predated the sessions tab and
+  showed a two-tab screen that no longer exists, and the subscription format,
+  page options and templates had no picture at all. Both READMEs now show
+  Settings alongside the inspectors.
+- Reworded the template hint in English; the Russian one already read clearly.
+
 ## [0.6.0] — 2026-08-03
 
 ### Added

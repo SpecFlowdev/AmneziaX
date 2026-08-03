@@ -83,6 +83,7 @@ the reserved tag `amneziax-api`.
 | `POST` | `/api/nodes/{uuid}/reset-traffic` | |
 | `GET` | `/api/nodes/{uuid}/config` | The exact rendered document, clients included. |
 | `GET` | `/api/nodes/{uuid}/logs?lines=200` | Fetched live from the agent. |
+| `GET` | `/api/nodes/{uuid}/metrics?hours=24` | Heartbeat history: CPU, memory and load, one sample per minute. `hours` is capped at 30 days. |
 
 Create payload:
 
@@ -199,6 +200,72 @@ Create payload:
 }
 ```
 
+## Notifications
+
+| Method | Path | Notes |
+|---|---|---|
+| `GET` | `/api/notifications/events` | The event kinds a channel can subscribe to. |
+| `GET` | `/api/notifications/channels` | Channels with their last delivery. **Secrets are never returned** — neither the webhook signing secret nor the Telegram bot token. |
+| `POST` | `/api/notifications/channels` | `{name, kind, url, secret, botToken, chatId, events, isEnabled}`. `kind` is `WEBHOOK` or `TELEGRAM`. |
+| `PUT` | `/api/notifications/channels/{uuid}` | A blank `secret` or `botToken` keeps the stored one; there is no way to read it back. |
+| `DELETE` | `/api/notifications/channels/{uuid}` | |
+| `POST` | `/api/notifications/channels/{uuid}/test` | Sends one delivery synchronously and returns what the endpoint answered. |
+| `GET` | `/api/notifications/channels/{uuid}/deliveries?limit=50` | Every attempt, with status code, response excerpt and retry count. |
+
+Webhook bodies are signed with HMAC-SHA256 over `timestamp + "." + body`. The
+signature travels in `X-AmneziaX-Signature` and the timestamp it covers in
+`X-AmneziaX-Timestamp` — verify both, and reject a timestamp far from now.
+
+A `4xx` from the endpoint is treated as permanent and not retried; `5xx` and
+`429` are retried with exponential backoff.
+
+## Announcements
+
+Shown to subscribers on their own page between `startsAt` and `endsAt`.
+
+| Method | Path | Notes |
+|---|---|---|
+| `GET` | `/api/announcements` | Including the ones not currently visible. |
+| `POST` | `/api/announcements` | `{title, body, level, startsAt, endsAt, isEnabled}`. `level` is `INFO`, `WARNING` or `DANGER`. |
+| `PUT` `DELETE` | `/api/announcements/{uuid}` | |
+
+## Response rules
+
+Pin a subscription format for a client the panel does not recognise on its own.
+Rules are matched on the `User-Agent`, in priority order, and never override a
+client that identifies itself.
+
+| Method | Path | Notes |
+|---|---|---|
+| `GET` | `/api/rules` | With each rule's hit counter and when it last matched. |
+| `POST` | `/api/rules` | `{name, matchType, pattern, format, priority, isEnabled}`. `matchType` is `CONTAINS`, `PREFIX`, `EXACT` or `REGEX`. |
+| `PUT` `DELETE` | `/api/rules/{uuid}` | |
+| `GET` | `/api/rules/test?ua=…` | `{userAgent, format}` — what that client would actually be served. A probe never counts as a hit. |
+
+## Inspectors
+
+| Method | Path | Notes |
+|---|---|---|
+| `GET` | `/api/inspect/subscriptions?limit=200&user=…&failed=1` | Every subscription fetch: who, from what address, which client, which format was served and what the panel answered. `failed=1` keeps only `4xx`/`5xx`. Requests that resolved to nobody are kept, with the token that was tried. |
+| `GET` | `/api/inspect/devices?limit=200&q=…` | Every known device across all subscribers. |
+| `GET` | `/api/inspect/sessions?minutes=15&limit=200` | Who moved traffic recently and through which node, grouped from the nodes' usage reports. `minutes` is capped at 24 hours. |
+
+Sessions are assembled from what the nodes already report. Individual
+connections and the addresses they reach are not visible to the panel and are
+not recorded anywhere.
+
+## Backup
+
+Owner only. A snapshot carries every credential in the deployment — node
+enrolment tokens, API tokens, channel secrets and subscription uuids — so treat
+the file exactly like the database itself.
+
+| Method | Path | Notes |
+|---|---|---|
+| `GET` | `/api/backup` | What a snapshot would contain: table names and row counts. |
+| `GET` | `/api/backup/export` | The snapshot as one JSON file, read in a single consistent transaction. Traffic history is not included. |
+| `POST` | `/api/backup/import` | **Replaces** the configuration rather than merging it, in one transaction. A snapshot from a different schema version is refused instead of being applied with columns dropped. |
+
 ## API tokens
 
 Owner only. For bots, billing systems and provisioning scripts.
@@ -232,13 +299,20 @@ Public. The token is either the user's `subscriptionUuid` or their `shortUuid`.
 | `GET` | `/sub/{token}/links` | The plain link list. |
 | `GET` | `/sub/{token}/clash` | Clash / Mihomo YAML. |
 | `GET` | `/sub/{token}/singbox` | sing-box JSON. |
-| `GET` | `/sub/{token}/json` | Structured info plus links. |
-| `GET` | `/sub/{token}/info` | Same payload, used by the subscription page. |
+| `GET` | `/sub/{token}/json` | A full Xray client config — inbounds, outbounds, routing and DNS — ready to drop into an Xray-based app. |
+| `GET` | `/sub/{token}/info` | Quota, expiry, visible announcements and the links, used by the subscription page. |
 
-`/sub/{token}` picks its encoding from the client's `User-Agent`: Clash, Mihomo,
-Stash and FlClash get YAML; sing-box, Hiddify and Karing get JSON; everything
-else gets the base64 list. `?format=base64|plain|clash|singbox|json` overrides
-the guess.
+`/sub/{token}` decides what to return in this order: an explicit `?format=`,
+then the client's `User-Agent` if it identifies itself (Clash, Mihomo, Stash and
+FlClash get YAML; sing-box, Hiddify and Karing get JSON), then the first
+matching response rule, then the panel's configured default, and finally base64.
+`?format=base64|plain|clash|singbox|json` overrides everything.
+
+The Clash and sing-box documents can be replaced with your own from Settings;
+the panel splices the servers each subscriber is entitled to into `{{PROXIES}}`,
+`{{NAMES}}`, `{{OUTBOUNDS}}`, `{{TAGS}}` and `{{TITLE}}`. A template that uses
+none of them is served verbatim, so the subscriber's servers will not appear in
+it.
 
 Responses carry `profile-title`, `profile-update-interval` and
 `subscription-userinfo` headers so clients can show quota and expiry. A disabled
@@ -249,7 +323,14 @@ the user and counted towards `hwidDeviceLimit`. A new device beyond the limit
 gets `403`; a device already known always passes, and a request without the
 header is never blocked.
 
-`GET /s/{token}` (no `/sub`) serves the human-readable page with a QR code.
+`GET /s/{token}` (no `/sub`) serves the human-readable page with a QR code when
+a browser asks for it, and the subscription itself to everything else — so the
+same link can be pasted into an app or opened by hand. What the page shows is
+configurable: the format buttons and the raw connection links can each be
+hidden, and a hidden link is not sent at all, not merely styled away.
+
+Every fetch of `/sub/{token}` and `/s/{token}` is recorded and readable through
+`/api/inspect/subscriptions`, including the ones that resolved to nobody.
 
 ## Installers
 

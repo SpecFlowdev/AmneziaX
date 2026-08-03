@@ -46,7 +46,8 @@ internal/config                 environment-driven settings
 internal/auth                   JWT issuing, bcrypt, node tokens
 internal/storage/postgres       repositories and embedded migrations
 internal/xray                   config parsing, validation and rendering
-internal/subscription           connection-link generation
+internal/subscription           connection links and client formats
+internal/notify                 webhook and Telegram delivery
 internal/hub                    live agent sessions and the sync engine
 internal/httpapi                REST handlers and middleware
 internal/webui                  serves the compiled SPA from the binary
@@ -163,6 +164,54 @@ multiplies each figure by the node's consumption multiplier, then:
 
 A background loop expires past-due users, rolls traffic counters over according
 to each user's reset strategy, and prunes history past `USAGE_RETENTION`.
+Heartbeat samples, delivery receipts and subscription request rows each
+accumulate at a fixed rate and are pruned on their own schedules, so the tables
+behind the charts and the inspectors do not grow without bound.
+
+**Sessions** are derived from the same `user_usage` buckets rather than from a
+separate feed. This is a deliberate limit: the panel knows how much a user moved
+through which node in a window, and nothing about individual connections or the
+addresses they reached, because the agent never reports them. The view says so
+rather than implying a precision it does not have.
+
+## Answering a subscription request
+
+`/sub/{token}` and `/s/{token}` resolve the token to a user, then decide what to
+serve in a fixed order: an explicit `?format=`, the `User-Agent` when the client
+names itself, the first matching response rule, the panel default, and finally
+base64. The resolution runs once per request and is reused for the access log,
+so a rule's hit counter reflects requests rather than internal lookups.
+
+Clash and sing-box are rendered from a template — the built-in one, or an
+operator's own with `{{PROXIES}}`, `{{NAMES}}`, `{{OUTBOUNDS}}`, `{{TAGS}}` and
+`{{TITLE}}` splice points. Every request is recorded, including the ones that
+resolved to nobody, which is where a revoked link still being polled shows up.
+
+## Notifications
+
+Events are published to an in-process dispatcher with a buffered queue, so a
+slow or unreachable endpoint never blocks the request that produced the event.
+Webhook bodies are signed with HMAC-SHA256 over `timestamp + "." + body`. A
+`4xx` is treated as permanent and not retried; `5xx` and `429` are retried with
+exponential backoff. Every attempt is stored with what the endpoint answered, so
+"the webhook never arrived" is an answerable question.
+
+Channel secrets — the webhook signing secret and the Telegram bot token — are
+write-only: the API never returns them, and a blank field on edit keeps the
+stored value.
+
+## Backup
+
+An export reads the configuration tables in one repeatable-read transaction, so
+the snapshot is internally consistent; traffic history is excluded because it is
+large and reconstructible. Import replaces rather than merges, in a single
+transaction, and refuses a snapshot whose schema version does not match rather
+than applying it with columns silently dropped. Column types are recorded
+alongside the values, because `["vless-reality"]` is ambiguous between a
+`text[]` and a `jsonb` without them.
+
+A snapshot carries every credential in the deployment, so both halves are
+owner-only and the UI says so.
 
 ## Failure handling
 

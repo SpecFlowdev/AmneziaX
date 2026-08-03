@@ -429,7 +429,7 @@ export const en = {
     subPageFormats: 'Show format buttons',
     clashTemplate: 'Clash template',
     singboxTemplate: 'sing-box template',
-    templateHint: 'Empty uses the built-in document. Placeholders: {{PROXIES}}, {{NAMES}}, {{OUTBOUNDS}}, {{TAGS}}, {{TITLE}}. A template naming none is served verbatim, so the servers a subscriber is entitled to will not appear in it.',
+    templateHint: 'Empty uses the built-in document. Placeholders: {{PROXIES}}, {{NAMES}}, {{OUTBOUNDS}}, {{TAGS}}, {{TITLE}}. A template that uses none of them is served verbatim, so the servers a subscriber is entitled to will not appear in it.',
     supportUrl: 'Support link',
     currency: 'Currency',
     saved: 'Settings saved',

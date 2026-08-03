@@ -195,13 +195,15 @@ algorithm.
 |---|---|
 | <img src="docs/assets/notifications.png" alt="Notification channels" width="100%"> | <img src="docs/assets/rules.png" alt="Response rules" width="100%"> |
 
-| Inspectors | |
+| Inspectors | Settings |
 |---|---|
-| <img src="docs/assets/inspect.png" alt="Subscription requests and devices" width="100%"> | |
+| <img src="docs/assets/inspect.png" alt="Subscription requests, devices and sessions" width="100%"> | <img src="docs/assets/settings.png" alt="Subscription format, page options and templates" width="100%"> |
 
 Live telemetry per node, one-line install commands, rendered configuration and
-log access on the left; quotas, squads, devices and subscription links on the
-right.
+log access on the nodes page; quotas, squads, devices and subscription links on
+the users page. The inspectors answer who fetched what and who is moving
+traffic; Settings is where the subscription format, the subscriber's page and
+the Clash and sing-box templates are set.
 
 ## Building from source
 

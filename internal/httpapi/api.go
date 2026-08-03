@@ -210,8 +210,6 @@ func (a *API) Router(ui http.Handler) http.Handler {
 				r.Delete("/{id}/devices/{hwid}", a.writable(a.deleteUserDevice))
 			})
 
-			// A snapshot carries every credential in the deployment, so both
-			// halves are owner-only.
 			r.Route("/rules", func(r chi.Router) {
 				r.Get("/", a.listRules)
 				r.Get("/test", a.testRule)
@@ -226,6 +224,8 @@ func (a *API) Router(ui http.Handler) http.Handler {
 				r.Get("/sessions", a.inspectSessions)
 			})
 
+			// A snapshot carries every credential in the deployment, so both
+			// halves are owner-only.
 			r.Route("/backup", func(r chi.Router) {
 				r.Get("/", a.ownerOnly(a.backupSummary))
 				r.Get("/export", a.ownerOnly(a.exportBackup))
