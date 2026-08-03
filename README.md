@@ -47,8 +47,12 @@ install already contains a working VLESS + REALITY profile.
 | **Live telemetry** | CPU, RAM, load, Xray uptime, online users and stacked traffic charts per node. |
 | **Quotas that enforce themselves** | Traffic limits, expiry dates and daily/weekly/monthly resets; a user who hits their limit is removed from the running config automatically. |
 | **Subscriptions** | One link per subscriber that a browser opens as a page and an app imports as a config. |
+| **Notifications** | Webhooks signed with HMAC-SHA256, and Telegram. Subscribe a channel to the events you care about, send a test delivery, and read the log of every attempt — so "the webhook never arrived" is an answerable question. |
+| **Announcements** | A scheduled notice subscribers see on their own page. Queue a maintenance window ahead of time instead of remembering to publish and then remove it. |
+| **Backup and restore** | The whole configuration in one file, and back again. Export runs in a single consistent transaction; restore replaces rather than merges, and refuses a snapshot from a different schema version rather than dropping columns in silence. |
+| **Load history** | Each node card draws CPU and memory over the last 24 hours, so you can tell "busy right now" from "busy for an hour". |
 | **Roles** | Owner, administrator and read-only accounts. |
-| **Bilingual UI** | Russian and English, dark and light themes, in a deep crimson palette. |
+| **Bilingual UI** | Russian and English, dark and light themes. A neutral grey shell with crimson kept for the things that are actually interactive. |
 | **White-label branding** | Set the panel's name, logo and accent colour from Settings; they apply to the sidebar, the sign-in screen and the subscription page. |
 | **Infrastructure billing** | Record what each node costs, from which provider and on what cycle. The dashboard totals monthly spend, cost per TB and what is due next. |
 | **Client-aware subscriptions** | Xray JSON, Clash/Mihomo YAML, sing-box JSON, plain and base64. A client that names itself gets its own format; everything else gets the panel's configured default, and `?format=` overrides both. |
@@ -181,6 +185,10 @@ algorithm.
 | Nodes | Users |
 |---|---|
 | <img src="docs/assets/nodes.png" alt="The nodes page" width="100%"> | <img src="docs/assets/users.png" alt="The users page" width="100%"> |
+
+| Notifications | |
+|---|---|
+| <img src="docs/assets/notifications.png" alt="Notification channels" width="100%"> | |
 
 Live telemetry per node, one-line install commands, rendered configuration and
 log access on the left; quotas, squads, devices and subscription links on the

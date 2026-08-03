@@ -19,8 +19,8 @@
   --rose-700: #be123c;
   --rose-900: #881337;
 
-  --radius: 14px;
-  --radius-sm: 9px;
+  --radius: 10px;
+  --radius-sm: 7px;
   --shadow-lg: 0 24px 60px -20px rgb(0 0 0 / 55%);
   --shadow-sm: 0 2px 10px -4px rgb(0 0 0 / 45%);
   --transition: 160ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -49,8 +49,7 @@
   --accent-hover: var(--rose-500);
   --accent-soft: rgb(225 29 72 / 13%);
   --accent-ring: rgb(244 63 110 / 32%);
-  /* A whisper of crimson at the top corners, not a wash over the whole page. */
-  --glow: radial-gradient(900px 380px at 12% -14%, rgb(190 18 60 / 9%), transparent 62%);
+  --glow: none;
   --on-accent: #fff;
   --code: #d4d4d8;
 }
@@ -70,7 +69,7 @@
   --accent-hover: var(--rose-700);
   --accent-soft: rgb(225 29 72 / 8%);
   --accent-ring: rgb(225 29 72 / 25%);
-  --glow: radial-gradient(900px 380px at 12% -14%, rgb(225 29 72 / 5%), transparent 62%);
+  --glow: none;
   --on-accent: #fff;
   --code: #3f3f46;
   --shadow-lg: 0 24px 60px -26px rgb(24 24 27 / 22%);
@@ -144,8 +143,7 @@ h1, h2, h3, h4 {
   flex-direction: column;
   gap: 4px;
   padding: 20px 14px;
-  background: color-mix(in srgb, var(--surface) 82%, transparent);
-  backdrop-filter: blur(14px);
+  background: var(--bg-deep);
   border-right: 1px solid var(--border-soft);
   overflow-y: auto;
 }
@@ -163,8 +161,7 @@ h1, h2, h3, h4 {
   border-radius: 10px;
   display: grid;
   place-items: center;
-  background: linear-gradient(140deg, var(--rose-500), var(--rose-700) 55%, var(--rose-900));
-  box-shadow: 0 6px 18px -6px var(--rose-700);
+  background: var(--accent);
   flex: none;
 }
 
@@ -182,10 +179,9 @@ h1, h2, h3, h4 {
 
 .nav-section {
   padding: 16px 12px 6px;
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
   color: var(--text-dim);
 }
 
@@ -206,9 +202,10 @@ h1, h2, h3, h4 {
   text-decoration: none;
 }
 .nav-item.active {
-  background: var(--accent-soft);
-  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+  background: var(--surface-2);
+  border-color: transparent;
   color: var(--text);
+  box-shadow: inset 2px 0 0 var(--accent);
 }
 .nav-item.active svg {
   color: var(--accent-hover);
@@ -234,8 +231,7 @@ h1, h2, h3, h4 {
   align-items: center;
   gap: 12px;
   padding: 14px 26px;
-  background: color-mix(in srgb, var(--bg) 78%, transparent);
-  backdrop-filter: blur(14px);
+  background: var(--bg);
   border-bottom: 1px solid var(--border-soft);
 }
 
@@ -269,11 +265,13 @@ h1, h2, h3, h4 {
 
 /* ------------------------------------------------------------------ surface */
 
+/* A card is separated by a hairline and a slightly lifted surface, nothing
+   more. Borders plus shadows plus a tint is three ways of saying the same
+   thing, and the page reads as boxes inside boxes. */
 .card {
-  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  background: var(--surface);
   border: 1px solid var(--border-soft);
   border-radius: var(--radius);
-  box-shadow: var(--shadow-sm);
 }
 
 .card-pad {
@@ -369,7 +367,7 @@ button, .btn {
 }
 button:hover, .btn:hover {
   background: var(--surface-3);
-  border-color: var(--accent);
+  border-color: var(--border);
   text-decoration: none;
 }
 button:disabled {
@@ -381,14 +379,16 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   outline-offset: 1px;
 }
 
+/* One flat fill, no gradient and no glow. A gradient on a 32px button is
+   decoration nobody reads, and the drop shadow made every primary action look
+   like it was hovering off the page. */
 .btn-primary {
-  background: linear-gradient(140deg, var(--rose-500), var(--rose-700));
+  background: var(--accent);
   border-color: transparent;
   color: var(--on-accent);
-  box-shadow: 0 8px 22px -12px var(--rose-600);
 }
 .btn-primary:hover {
-  background: linear-gradient(140deg, var(--rose-400), var(--rose-600));
+  background: var(--accent-hover);
   border-color: transparent;
 }
 
@@ -596,7 +596,7 @@ tbody tr:last-child td {
   display: block;
   height: 100%;
   border-radius: 99px;
-  background: linear-gradient(90deg, var(--rose-500), var(--rose-700));
+  background: var(--accent);
   transition: width 400ms var(--transition);
 }
 .meter.over > span {
