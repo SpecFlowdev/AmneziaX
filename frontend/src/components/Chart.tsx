@@ -273,3 +273,95 @@ export function Sparkbars({ points }: { points: { at: string; bytes: number }[] 
     </div>
   )
 }
+
+export interface MetricPoint {
+  at: string
+  cpuPercent: number
+  usedRamBytes: number
+  totalRamBytes: number
+  loadAvg1: number
+  onlineUsers: number
+}
+
+/**
+ * A node's load over time, drawn small enough to sit on the node card.
+ *
+ * The single instantaneous reading beside it answers "is this node busy right
+ * now"; it cannot answer "has it been busy for an hour", which is the question
+ * that decides whether to act. Both series share one 0–100% axis because both
+ * are percentages of their own capacity — CPU directly, memory as a fraction of
+ * total — so the shapes are comparable without a second scale.
+ */
+export function NodeLoadChart({
+  points,
+  height = 72,
+}: {
+  points: MetricPoint[]
+  height?: number
+}) {
+  if (points.length < 2) return null
+
+  const W = 600
+  const H = height
+
+  // Time on the x axis, not sample index: a node that was unreachable for an
+  // hour must leave a gap, not compress the outage into one flat step.
+  const t0 = new Date(points[0].at).getTime()
+  const t1 = new Date(points[points.length - 1].at).getTime()
+  const span = Math.max(1, t1 - t0)
+  const x = (iso: string) => ((new Date(iso).getTime() - t0) / span) * W
+  const y = (pct: number) => H - (Math.max(0, Math.min(100, pct)) / 100) * H
+
+  const line = (value: (p: MetricPoint) => number) =>
+    points
+      .map((p, i) => `${i === 0 ? 'M' : 'L'}${x(p.at).toFixed(1)},${y(value(p)).toFixed(1)}`)
+      .join('')
+
+  const ramPercent = (p: MetricPoint) =>
+    p.totalRamBytes > 0 ? (p.usedRamBytes / p.totalRamBytes) * 100 : 0
+
+  return (
+    <svg
+      viewBox={`0 0 ${W} ${H}`}
+      preserveAspectRatio="none"
+      style={{ width: '100%', height, display: 'block' }}
+      role="img"
+      aria-label="node load"
+    >
+      {[0.5].map((g) => (
+        <line
+          key={g}
+          x1={0}
+          x2={W}
+          y1={H * g}
+          y2={H * g}
+          stroke="currentColor"
+          strokeOpacity="0.1"
+          strokeWidth="1"
+          vectorEffect="non-scaling-stroke"
+        />
+      ))}
+      <path
+        d={line((p) => p.cpuPercent)}
+        fill="none"
+        stroke={CPU_COLOUR}
+        strokeWidth="1.6"
+        vectorEffect="non-scaling-stroke"
+      />
+      <path
+        d={line(ramPercent)}
+        fill="none"
+        stroke={RAM_COLOUR}
+        strokeWidth="1.6"
+        strokeDasharray="4 3"
+        vectorEffect="non-scaling-stroke"
+      />
+    </svg>
+  )
+}
+
+// Two series only, so they are named here rather than drawn from the
+// categorical palette — and they are told apart by dash pattern as well as
+// hue, which keeps them readable for a colourblind reader and in print.
+export const CPU_COLOUR = '#3987e5'
+export const RAM_COLOUR = '#c98500'

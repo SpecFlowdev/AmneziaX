@@ -117,6 +117,7 @@ export const en = {
     xray: 'Xray',
     system: 'System',
     traffic: 'Traffic',
+    load24h: 'Load, last 24 hours',
     restart: 'Restart Xray',
     sync: 'Push config',
     logs: 'Logs',

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Icon } from '../components/icons'
+import { NodeLoadChart, CPU_COLOUR, RAM_COLOUR, type MetricPoint } from '../components/Chart'
 import {
   Badge,
   CheckList,
@@ -153,6 +154,8 @@ export function Nodes() {
                     }
                   />
                 </div>
+
+                <NodeLoad nodeId={node.uuid} />
 
                 <div>
                   <div className="split small" style={{ marginBottom: 6 }}>
@@ -784,3 +787,32 @@ function ConfigDialog({ node, onClose }: { node: Node; onClose: () => void }) {
 }
 
 export { Badge }
+
+/**
+ * Load history for one node. Rendered only when there is a history to draw:
+ * a freshly added node has no samples, and an empty axis says less than
+ * nothing at all.
+ */
+function NodeLoad({ nodeId }: { nodeId: string }) {
+  const { t } = useI18n()
+  const metrics = useFetch<MetricPoint[]>(`/api/nodes/${nodeId}/metrics?hours=24`, 60_000)
+  const points = metrics.data ?? []
+  if (points.length < 2) return null
+
+  const last = points[points.length - 1]
+  const ramPct = last.totalRamBytes > 0 ? (last.usedRamBytes / last.totalRamBytes) * 100 : 0
+
+  return (
+    <div>
+      <div className="split small" style={{ marginBottom: 4 }}>
+        <span className="dim">{t.nodes.load24h}</span>
+        <div style={{ flex: 1 }} />
+        <span className="small dim" style={{ display: 'inline-flex', gap: 10 }}>
+          <span style={{ color: CPU_COLOUR }}>CPU {last.cpuPercent.toFixed(0)}%</span>
+          <span style={{ color: RAM_COLOUR }}>RAM {ramPct.toFixed(0)}%</span>
+        </span>
+      </div>
+      <NodeLoadChart points={points} />
+    </div>
+  )
+}

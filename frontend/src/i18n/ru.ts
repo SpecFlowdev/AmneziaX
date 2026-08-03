@@ -119,6 +119,7 @@ export const ru: Dictionary = {
     xray: 'Xray',
     system: 'Система',
     traffic: 'Трафик',
+    load24h: 'Нагрузка за 24 часа',
     restart: 'Перезапустить Xray',
     sync: 'Отправить конфиг',
     logs: 'Логи',
