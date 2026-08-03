@@ -10,6 +10,28 @@ that follows the stable channel.
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-08-03
+
+### Added
+
+- **Response rules.** The panel knew a built-in list of clients and one global
+  default for everything else, so an operator whose users run something it has
+  never heard of could only change that default for everybody at once. A rule
+  matches a substring of the User-Agent — not a regex, because operators write
+  these and a bad regex fails at request time on a path that must not fail —
+  and pins a format. Rules sit below the built-in detection, never above it,
+  and above the global default. Each counts its hits, and the screen has a
+  probe that answers what a given client would actually be served, including
+  when a built-in match or the default wins instead.
+
+### Fixed
+
+- The rule hit counter read three for a single request: the format is resolved
+  twice per request, once to answer and once to log, and the operator's probe
+  counted as well. A counter that inflates is worse than none, since its only
+  job is to tell you whether a rule ever fires. Counting now happens once, on
+  the answering path.
+
 ## [0.4.0] — 2026-08-03
 
 ### Added
@@ -180,7 +202,8 @@ First release: a working control plane for a fleet of Xray servers.
   but `curl`.
 - Russian and English throughout, in dark and light themes.
 
-[Unreleased]: https://github.com/SpecFlowdev/AmneziaX/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/SpecFlowdev/AmneziaX/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/SpecFlowdev/AmneziaX/releases/tag/v0.5.0
 [0.4.0]: https://github.com/SpecFlowdev/AmneziaX/releases/tag/v0.4.0
 [0.3.0]: https://github.com/SpecFlowdev/AmneziaX/releases/tag/v0.3.0
 [0.2.0]: https://github.com/SpecFlowdev/AmneziaX/releases/tag/v0.2.0
