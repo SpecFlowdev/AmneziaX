@@ -10,6 +10,26 @@ that follows the stable channel.
 
 ## [Unreleased]
 
+### Added
+
+- **Backup and restore.** One file holds the whole configuration — settings,
+  admins, profiles, nodes, hosts, squads, users, notification channels,
+  announcements — and can be loaded back. History (traffic, events, heartbeat
+  samples, delivery receipts) is deliberately left out: it is large, it is
+  pruned on a schedule anyway, and it rebuilds itself.
+  Export runs in one repeatable-read transaction, so the snapshot is a single
+  consistent moment rather than a smear. Restore runs in one transaction and
+  replaces rather than merges, because a half-merged panel is worse than
+  either state. Each column's Postgres type is recorded alongside the data,
+  since JSON cannot tell a `text[]` from a `jsonb` array once both are a list
+  of strings — and a snapshot from a different schema version is refused
+  outright rather than loaded with columns silently dropped.
+  Owner-only: the file contains every subscription link, node token and
+  password hash in the deployment, and the UI says so.
+- Node load over the last 24 hours is drawn on each node card. CPU and memory
+  share one 0–100% axis, the x axis is real time so an outage leaves a gap,
+  and the two series differ in dash pattern as well as hue.
+
 ## [0.2.0] — 2026-08-03
 
 ### Added

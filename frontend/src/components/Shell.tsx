@@ -47,6 +47,7 @@ export function Shell() {
         { to: '/notifications', label: t.nav.notifications, icon: 'bell' },
         { to: '/announcements', label: t.nav.announcements, icon: 'info' },
         { to: '/events', label: t.nav.events, icon: 'activity' },
+        { to: '/backup', label: t.nav.backup, icon: 'download', ownerOnly: true },
         { to: '/settings', label: t.nav.settings, icon: 'settings' },
       ],
     },

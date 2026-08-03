@@ -74,6 +74,14 @@ func (a *API) settings(r *http.Request) (*domain.Settings, error) {
 	return fresh, nil
 }
 
+// invalidateSettings drops the cache so the next read goes to the database.
+// Used after a restore, which replaces the settings row underneath the cache.
+func (a *API) invalidateSettings() {
+	a.settingsMu.Lock()
+	a.settingsCache, a.settingsAt = nil, time.Time{}
+	a.settingsMu.Unlock()
+}
+
 func (a *API) cacheSettings(s *domain.Settings) {
 	a.settingsMu.Lock()
 	a.settingsCache, a.settingsAt = s, time.Now()
@@ -200,6 +208,14 @@ func (a *API) Router(ui http.Handler) http.Handler {
 				r.Get("/{id}/devices", a.userDevices)
 				r.Delete("/{id}/devices", a.writable(a.resetUserDevices))
 				r.Delete("/{id}/devices/{hwid}", a.writable(a.deleteUserDevice))
+			})
+
+			// A snapshot carries every credential in the deployment, so both
+			// halves are owner-only.
+			r.Route("/backup", func(r chi.Router) {
+				r.Get("/", a.ownerOnly(a.backupSummary))
+				r.Get("/export", a.ownerOnly(a.exportBackup))
+				r.Post("/import", a.ownerOnly(a.importBackup))
 			})
 
 			r.Route("/notifications", func(r chi.Router) {
