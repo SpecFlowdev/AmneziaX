@@ -10,6 +10,8 @@ that follows the stable channel.
 
 ## [Unreleased]
 
+## [0.1.1] — 2026-08-02
+
 ### Added
 
 - Xray JSON subscriptions — the array of complete client configurations that
@@ -103,5 +105,6 @@ First release: a working control plane for a fleet of Xray servers.
   but `curl`.
 - Russian and English throughout, in dark and light themes.
 
-[Unreleased]: https://github.com/SpecFlowdev/AmneziaX/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/SpecFlowdev/AmneziaX/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/SpecFlowdev/AmneziaX/releases/tag/v0.1.1
 [0.1.0]: https://github.com/SpecFlowdev/AmneziaX/releases/tag/v0.1.0
