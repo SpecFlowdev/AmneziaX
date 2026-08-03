@@ -229,6 +229,36 @@ PANEL_ADMIN_PASSWORD=devpassword \
 During UI work, `cd frontend && npm run dev` proxies `/api` and `/sub` to
 `127.0.0.1:8080`.
 
+## Updating
+
+The compose file follows `:latest`, so an update is a pull and a restart:
+
+```bash
+cd /opt/amneziax
+docker compose pull
+docker compose up -d
+```
+
+Migrations run on start, so there is no separate step. Nodes are not touched —
+the agent protocol is backwards compatible, and a node keeps serving traffic
+while the panel restarts. Update an agent only when a release says to, with the
+same one-liner the panel shows on the node card.
+
+If the stack was installed with `--build`, or the pull fell back to building
+locally, update the checkout first:
+
+```bash
+cd /opt/amneziax/src && git pull
+docker compose -f /opt/amneziax/src/deploy/docker-compose.yml \
+  --env-file /opt/amneziax/.env up -d --build
+```
+
+That mode keeps the compose file inside the checkout rather than in the install
+directory, which is why it needs both paths spelled out.
+
+Check what you actually ended up on in **Settings → About → Panel version**;
+`docker compose images panel` shows the image digest behind it.
+
 ## Operating notes
 
 - **Back up Postgres.** It holds every user, credential and configuration.
