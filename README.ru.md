@@ -190,9 +190,13 @@ gRPC-слушатель панели по h2c без таймаутов и бу�
 |---|---|
 | <img src="docs/assets/nodes.png" alt="Страница нод" width="100%"> | <img src="docs/assets/users.png" alt="Страница пользователей" width="100%"> |
 
-| Уведомления | |
+| Уведомления | Правила ответов |
 |---|---|
-| <img src="docs/assets/notifications.png" alt="Каналы уведомлений" width="100%"> | |
+| <img src="docs/assets/notifications.png" alt="Каналы уведомлений" width="100%"> | <img src="docs/assets/rules.png" alt="Правила ответов" width="100%"> |
+
+| Инспекторы | |
+|---|---|
+| <img src="docs/assets/inspect.png" alt="Обращения к подпискам и устройства" width="100%"> | |
 
 Слева — живая телеметрия по каждой ноде, однострочные команды установки,
 итоговый конфиг и логи. Справа — лимиты, сквады, устройства и ссылки подписок.

@@ -188,9 +188,13 @@ algorithm.
 |---|---|
 | <img src="docs/assets/nodes.png" alt="The nodes page" width="100%"> | <img src="docs/assets/users.png" alt="The users page" width="100%"> |
 
-| Notifications | |
+| Notifications | Response rules |
 |---|---|
-| <img src="docs/assets/notifications.png" alt="Notification channels" width="100%"> | |
+| <img src="docs/assets/notifications.png" alt="Notification channels" width="100%"> | <img src="docs/assets/rules.png" alt="Response rules" width="100%"> |
+
+| Inspectors | |
+|---|---|
+| <img src="docs/assets/inspect.png" alt="Subscription requests and devices" width="100%"> | |
 
 Live telemetry per node, one-line install commands, rendered configuration and
 log access on the left; quotas, squads, devices and subscription links on the
