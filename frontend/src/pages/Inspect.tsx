@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Icon } from '../components/icons'
 import { EmptyState, Spinner, Tabs } from '../components/ui'
 import { useI18n } from '../i18n'
-import { dateTime, relative } from '../lib/format'
+import { bytes, dateTime, relative } from '../lib/format'
 import { useFetch } from '../lib/useApi'
 
 interface DeviceRow {
@@ -28,7 +28,17 @@ interface RequestRow {
   at: string
 }
 
-type Tab = 'devices' | 'requests'
+interface SessionRow {
+  userUuid: string
+  username: string
+  status: string
+  nodeName: string
+  countryCode: string
+  bytes: number
+  lastSeen: string
+}
+
+type Tab = 'devices' | 'requests' | 'sessions'
 
 export function Inspect() {
   const { t, lang } = useI18n()
@@ -40,12 +50,13 @@ export function Inspect() {
     `/api/inspect/devices?limit=200${query ? `&q=${encodeURIComponent(query)}` : ''}`,
     30_000,
   )
+  const sessions = useFetch<SessionRow[]>('/api/inspect/sessions?minutes=15', 15_000)
   const requests = useFetch<RequestRow[]>(
     `/api/inspect/subscriptions?limit=200${failedOnly ? '&failed=1' : ''}`,
     15_000,
   )
 
-  const active = tab === 'devices' ? devices : requests
+  const active = tab === 'devices' ? devices : tab === 'sessions' ? sessions : requests
 
   return (
     <div className="page">
@@ -66,10 +77,13 @@ export function Inspect() {
           options={[
             { value: 'requests', label: t.inspect.requests },
             { value: 'devices', label: t.inspect.devices },
+            { value: 'sessions', label: t.inspect.sessions },
           ]}
         />
         <div style={{ flex: 1 }} />
-        {tab === 'devices' ? (
+        {tab === 'sessions' ? (
+          <span className="small dim">{t.inspect.sessionsWindow}</span>
+        ) : tab === 'devices' ? (
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -93,6 +107,35 @@ export function Inspect() {
           <div style={{ display: 'grid', placeItems: 'center', height: 180 }}>
             <Spinner />
           </div>
+        ) : tab === 'sessions' ? (
+          (sessions.data ?? []).length === 0 ? (
+            <EmptyState title={t.common.nothingHere} hint={t.inspect.sessionsHint} />
+          ) : (
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>{t.inspect.user}</th>
+                    <th>{t.nav.nodes}</th>
+                    <th className="right">{t.inspect.moved}</th>
+                    <th>{t.inspect.lastSeen}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(sessions.data ?? []).map((x) => (
+                    <tr key={`${x.userUuid}-${x.nodeName}`}>
+                      <td>{x.username}</td>
+                      <td className="small">{x.nodeName}</td>
+                      <td className="right small nums">{bytes(x.bytes)}</td>
+                      <td className="small dim nowrap" title={dateTime(x.lastSeen, lang)}>
+                        {relative(x.lastSeen, lang)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )
         ) : tab === 'devices' ? (
           (devices.data ?? []).length === 0 ? (
             <EmptyState title={t.common.nothingHere} hint={t.inspect.devicesHint} />

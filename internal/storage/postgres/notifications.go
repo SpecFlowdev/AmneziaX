@@ -500,3 +500,57 @@ func (s *Store) DeleteRule(ctx context.Context, id string) error {
 	}
 	return nil
 }
+
+// ---------------------------------------------------------------- sessions
+
+// Session is a subscriber currently carrying traffic, and where.
+//
+// This is assembled from what the panel already collects rather than from a
+// per-connection feed: xray reports usage per user per node, and a user that
+// moved bytes in the last few minutes is, for an operator's purposes, online
+// there. It cannot show individual connections or their addresses — that would
+// need the agent to report them — and the UI says so rather than implying a
+// precision it does not have.
+type Session struct {
+	UserID   string     `json:"userUuid"`
+	Username string     `json:"username"`
+	Status   string     `json:"status"`
+	NodeID   string     `json:"nodeUuid"`
+	NodeName string     `json:"nodeName"`
+	Country  string     `json:"countryCode"`
+	Bytes    int64      `json:"bytes"`
+	LastSeen time.Time  `json:"lastSeen"`
+	OnlineAt *time.Time `json:"onlineAt"`
+}
+
+// Sessions lists who has moved traffic within the window, newest first.
+func (s *Store) Sessions(ctx context.Context, within time.Duration, limit int) ([]Session, error) {
+	if limit <= 0 || limit > 500 {
+		limit = 200
+	}
+	rows, err := s.pool.Query(ctx, `
+		SELECT u.uuid, u.username, u.status, n.uuid, n.name, n.country_code,
+		       SUM(uu.bytes)::bigint, MAX(uu.bucket), u.online_at
+		FROM user_usage uu
+		JOIN users u ON u.uuid = uu.user_uuid
+		JOIN nodes n ON n.uuid = uu.node_uuid
+		WHERE uu.bucket >= NOW() - $1::interval
+		GROUP BY u.uuid, u.username, u.status, n.uuid, n.name, n.country_code, u.online_at
+		ORDER BY MAX(uu.bucket) DESC
+		LIMIT $2`, within.String(), limit)
+	if err != nil {
+		return nil, mapErr(err)
+	}
+	defer rows.Close()
+
+	out := []Session{}
+	for rows.Next() {
+		var x Session
+		if err := rows.Scan(&x.UserID, &x.Username, &x.Status, &x.NodeID, &x.NodeName,
+			&x.Country, &x.Bytes, &x.LastSeen, &x.OnlineAt); err != nil {
+			return nil, mapErr(err)
+		}
+		out = append(out, x)
+	}
+	return out, mapErr(rows.Err())
+}

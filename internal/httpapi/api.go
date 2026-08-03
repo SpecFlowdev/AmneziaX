@@ -223,6 +223,7 @@ func (a *API) Router(ui http.Handler) http.Handler {
 			r.Route("/inspect", func(r chi.Router) {
 				r.Get("/devices", a.inspectDevices)
 				r.Get("/subscriptions", a.inspectSubscriptionRequests)
+				r.Get("/sessions", a.inspectSessions)
 			})
 
 			r.Route("/backup", func(r chi.Router) {

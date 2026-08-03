@@ -12,6 +12,11 @@ that follows the stable channel.
 
 ### Added
 
+- **Sessions.** A third inspector tab showing who has carried traffic recently
+  and through which node. Assembled from the usage the nodes already report
+  rather than from a per-connection feed, so it cannot show individual
+  connections or their addresses — that would need the agent to report them,
+  and the tab says so instead of implying a precision it does not have.
 - **Subscription templates.** Clash and sing-box are whole configuration
   documents, and the panel rendered both from a template baked into the binary
   — right for most deployments, and impossible to change for an operator who
