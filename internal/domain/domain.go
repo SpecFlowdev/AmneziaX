@@ -79,9 +79,13 @@ type Settings struct {
 	SubscriptionFormat string `json:"subscriptionFormat"`
 	// What the subscriber's page offers. Both default to on, so an existing
 	// deployment looks exactly as it did.
-	SubPageShowLinks   bool      `json:"subPageShowLinks"`
-	SubPageShowFormats bool      `json:"subPageShowFormats"`
-	UpdatedAt          time.Time `json:"updatedAt"`
+	SubPageShowLinks   bool `json:"subPageShowLinks"`
+	SubPageShowFormats bool `json:"subPageShowFormats"`
+	// Custom documents for the two formats that are whole config files rather
+	// than a list of links. Empty means the built-in template.
+	ClashTemplate   string    `json:"clashTemplate"`
+	SingBoxTemplate string    `json:"singboxTemplate"`
+	UpdatedAt       time.Time `json:"updatedAt"`
 }
 
 // BillingCycle is how often a node has to be paid for.

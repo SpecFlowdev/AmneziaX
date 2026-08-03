@@ -191,7 +191,7 @@ func (a *API) subscription(w http.ResponseWriter, r *http.Request) {
 	applySubHeaders(w, bundle)
 	w.Header().Set("Content-Type", format.ContentType())
 	w.Header().Set("Cache-Control", "no-store")
-	_, _ = w.Write([]byte(subscription.Render(bundle, format)))
+	_, _ = w.Write([]byte(subscription.RenderWith(bundle, format, a.templates(r))))
 }
 
 // subscriptionLinks returns the plain list, which is easier to paste manually
@@ -261,7 +261,7 @@ func (a *API) serveFormat(w http.ResponseWriter, r *http.Request, f subscription
 	applySubHeaders(w, bundle)
 	w.Header().Set("Content-Type", f.ContentType())
 	w.Header().Set("Cache-Control", "no-store")
-	_, _ = w.Write([]byte(subscription.Render(bundle, f)))
+	_, _ = w.Write([]byte(subscription.RenderWith(bundle, f, a.templates(r))))
 }
 
 // logSubRequest records one fetch of a subscription link. It is best-effort by
@@ -309,4 +309,14 @@ func (a *API) matchRule(r *http.Request, count bool) (string, bool) {
 		return a.store.MatchRule(r.Context(), r.UserAgent())
 	}
 	return a.store.PreviewRule(r.Context(), r.UserAgent())
+}
+
+// templates loads the operator's custom documents. A settings failure falls
+// back to the built-in rendering rather than to nothing.
+func (a *API) templates(r *http.Request) subscription.Templates {
+	s, err := a.settings(r)
+	if err != nil || s == nil {
+		return subscription.Templates{}
+	}
+	return subscription.Templates{Clash: s.ClashTemplate, SingBox: s.SingBoxTemplate}
 }

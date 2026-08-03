@@ -236,6 +236,8 @@ export interface Settings {
   subscriptionFormat: string
   subPageShowLinks: boolean
   subPageShowFormats: boolean
+  clashTemplate: string
+  singboxTemplate: string
   updatedAt?: string
 }
 

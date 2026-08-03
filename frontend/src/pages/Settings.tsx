@@ -320,6 +320,23 @@ function BrandingCard() {
           </div>
         </Field>
 
+        <Field label={t.settings.clashTemplate} hint={t.settings.templateHint}>
+          <textarea
+            value={draft.clashTemplate ?? ''}
+            onChange={(e) => set('clashTemplate', e.target.value)}
+            rows={4}
+            placeholder={'proxies:\n{{PROXIES}}'}
+          />
+        </Field>
+        <Field label={t.settings.singboxTemplate} hint={t.settings.templateHint}>
+          <textarea
+            value={draft.singboxTemplate ?? ''}
+            onChange={(e) => set('singboxTemplate', e.target.value)}
+            rows={4}
+            placeholder={'{"outbounds": [{{OUTBOUNDS}}]}'}
+          />
+        </Field>
+
         <button className="btn-primary" onClick={() => void save()} disabled={busy}>
           {busy && <Spinner />}
           {t.common.save}

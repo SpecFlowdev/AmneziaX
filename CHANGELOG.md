@@ -12,6 +12,16 @@ that follows the stable channel.
 
 ### Added
 
+- **Subscription templates.** Clash and sing-box are whole configuration
+  documents, and the panel rendered both from a template baked into the binary
+  — right for most deployments, and impossible to change for an operator who
+  needs their own rules, DNS or proxy groups. A custom document can now be
+  supplied for either, with the panel splicing in the part only it knows: the
+  servers a subscriber is entitled to. Empty keeps the built-in rendering, so
+  nothing changes until someone opts in. A template naming no placeholder is
+  served verbatim — a deliberate escape hatch for pinning one fixed
+  configuration, and the hint says plainly that a subscriber's own servers will
+  not appear in it.
 - **Subscription page options.** The subscriber's page was fixed for everyone:
   QR, link, format buttons and the raw `vless://` connection strings. Handing
   those to a non-technical subscriber invites them to paste the wrong one, and

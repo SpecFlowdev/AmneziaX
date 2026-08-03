@@ -518,3 +518,93 @@ func Render(b Bundle, f Format) string {
 		return Base64(b)
 	}
 }
+
+// ---------------------------------------------------------------- templates
+
+// Templates lets an operator replace the two formats that are whole
+// configuration documents rather than a list of links. Empty fields keep the
+// built-in rendering.
+type Templates struct {
+	Clash   string
+	SingBox string
+}
+
+// Placeholders a custom document can use. The panel supplies the parts it
+// alone knows — the servers a subscriber is entitled to — and leaves
+// everything else, rules, DNS, proxy groups, to the operator.
+const (
+	PlaceholderProxies   = "{{PROXIES}}"   // Clash: the `proxies:` entries
+	PlaceholderNames     = "{{NAMES}}"     // Clash: proxy names, quoted and comma-separated
+	PlaceholderOutbounds = "{{OUTBOUNDS}}" // sing-box: outbound objects, JSON
+	PlaceholderTags      = "{{TAGS}}"      // sing-box: outbound tags, JSON strings
+	PlaceholderTitle     = "{{TITLE}}"
+)
+
+// RenderWith is Render with operator templates applied where they exist.
+//
+// A template that names no placeholder is served as written. That is a
+// deliberate escape hatch — an operator pinning one fixed configuration is a
+// legitimate thing to want — but it does mean the panel cannot warn that a
+// subscriber's own servers went missing, so the UI says so.
+func RenderWith(b Bundle, f Format, t Templates) string {
+	switch f {
+	case FormatClash:
+		if strings.TrimSpace(t.Clash) != "" {
+			return applyClashTemplate(b, t.Clash)
+		}
+	case FormatSingBox:
+		if strings.TrimSpace(t.SingBox) != "" {
+			return applySingBoxTemplate(b, t.SingBox)
+		}
+	}
+	return Render(b, f)
+}
+
+func applyClashTemplate(b Bundle, tpl string) string {
+	var entries strings.Builder
+	names := make([]string, 0, len(b.Hosts))
+	for _, h := range b.Hosts {
+		entry, name := clashProxy(b.User, h)
+		if entry == "" {
+			continue
+		}
+		entries.WriteString(entry)
+		names = append(names, yamlString(name))
+	}
+
+	out := strings.ReplaceAll(tpl, PlaceholderProxies, strings.TrimRight(entries.String(), "\n"))
+	out = strings.ReplaceAll(out, PlaceholderNames, strings.Join(names, ", "))
+	return strings.ReplaceAll(out, PlaceholderTitle, b.Title)
+}
+
+func applySingBoxTemplate(b Bundle, tpl string) string {
+	outbounds := make([]map[string]any, 0, len(b.Hosts))
+	tags := make([]string, 0, len(b.Hosts))
+	for _, h := range b.Hosts {
+		ob, tag := singBoxOutbound(b.User, h)
+		if ob == nil {
+			continue
+		}
+		outbounds = append(outbounds, ob)
+		tags = append(tags, tag)
+	}
+
+	// Marshalled without the surrounding brackets so the placeholder can sit
+	// inside an array the operator wrote.
+	obJSON, err := json.MarshalIndent(outbounds, "", "  ")
+	if err != nil {
+		obJSON = []byte("[]")
+	}
+	inner := strings.TrimSpace(string(obJSON))
+	inner = strings.TrimPrefix(inner, "[")
+	inner = strings.TrimSuffix(inner, "]")
+
+	quoted := make([]string, 0, len(tags))
+	for _, t := range tags {
+		quoted = append(quoted, strconv.Quote(t))
+	}
+
+	out := strings.ReplaceAll(tpl, PlaceholderOutbounds, strings.TrimSpace(inner))
+	out = strings.ReplaceAll(out, PlaceholderTags, strings.Join(quoted, ", "))
+	return strings.ReplaceAll(out, PlaceholderTitle, b.Title)
+}
