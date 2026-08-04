@@ -10,6 +10,8 @@ that follows the stable channel.
 
 ## [Unreleased]
 
+## [0.7.0] — 2026-08-04
+
 ### Added
 
 - **Two-factor authentication for administrators.** The panel holds every node

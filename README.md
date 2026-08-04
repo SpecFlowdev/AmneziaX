@@ -201,11 +201,16 @@ algorithm.
 |---|---|
 | <img src="docs/assets/inspect.png" alt="Subscription requests, devices and sessions" width="100%"> | <img src="docs/assets/settings.png" alt="Subscription format, page options and templates" width="100%"> |
 
+| Two-factor setup | Signing in |
+|---|---|
+| <img src="docs/assets/security.png" alt="Enrolling an authenticator app" width="100%"> | <img src="docs/assets/signin.png" alt="The code step on the sign-in screen" width="100%"> |
+
 Live telemetry per node, one-line install commands, rendered configuration and
 log access on the nodes page; quotas, squads, devices and subscription links on
 the users page. The inspectors answer who fetched what and who is moving
 traffic; Settings is where the subscription format, the subscriber's page and
-the Clash and sing-box templates are set.
+the Clash and sing-box templates are set. The key in the enrolment picture is
+the RFC's example value, not a live one.
 
 ## Building from source
 
