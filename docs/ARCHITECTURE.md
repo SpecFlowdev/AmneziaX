@@ -213,6 +213,35 @@ alongside the values, because `["vless-reality"]` is ambiguous between a
 A snapshot carries every credential in the deployment, so both halves are
 owner-only and the UI says so.
 
+## Signing in
+
+A password alone is a session only when the account has no second factor.
+With one, the first call returns "a code is required" and no token — the
+password being right is not by itself a session — and the second call carries a
+TOTP code or a recovery code.
+
+TOTP is RFC 6238 computed on the standard library rather than a dependency:
+HMAC-SHA1 over a thirty second counter, six digits, one step either side for a
+phone whose clock has drifted. Accepting a code records its time step, so the
+same code cannot be replayed inside the window it stays valid — the difference
+between a second factor and a thirty second password. Recovery codes are stored
+as digests, removed as they are used, and compared against every candidate so a
+wrong one costs the same as a right one.
+
+The secret itself is stored in the clear, because verifying a TOTP needs the
+original key; there is no hash that would still let the panel check a code. It
+is exactly as sensitive as the node tokens and subscription links already in
+that database, and no more.
+
+Failed attempts are counted in memory against two keys, the username and the
+source address. Counting only usernames lets one attacker walk a list; counting
+only addresses lets a botnet spread one guess. Either crossing the threshold
+locks further attempts, with a backoff that doubles to a cap, and the lock is
+checked *before* the password is — so a lockout is not something the right
+password walks through. In-memory is the deliberate trade: no write per failed
+guess, and the only way to clear it is a panel restart, which an attacker on
+the outside cannot cause.
+
 ## Failure handling
 
 - **Bad configuration.** The agent writes the new document, runs

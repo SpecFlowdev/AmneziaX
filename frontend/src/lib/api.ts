@@ -234,6 +234,7 @@ export interface Settings {
   supportUrl: string
   currency: string
   subscriptionFormat: string
+  requireTotp: boolean
   subPageShowLinks: boolean
   subPageShowFormats: boolean
   clashTemplate: string

@@ -10,6 +10,39 @@ that follows the stable channel.
 
 ## [Unreleased]
 
+### Added
+
+- **Two-factor authentication for administrators.** The panel holds every node
+  token, subscription link and password hash in the deployment, and a password
+  was the only thing in front of it. TOTP is computed on the standard library
+  rather than pulled in as a dependency, and checked against the RFC 6238 test
+  vectors so it matches what an authenticator app will produce rather than
+  merely matching itself.
+  Enrolment is two steps — the secret is staged, and only a code the app
+  actually produced turns it on — because a secret written straight to the
+  account locks out anyone who scanned a QR into an app that never worked.
+  An accepted code's time step is recorded, so the same code cannot be used
+  twice inside the thirty seconds it stays valid; without that a code read over
+  someone's shoulder is reusable, and a second factor that can be replayed is a
+  slower password. The code that confirms enrolment is burned the same way.
+  Ten single-use recovery codes are shown once and stored only as digests, and
+  are forgiving about case and the separator, because they get retyped from
+  paper. Turning two-factor off, or regenerating the codes, asks for the
+  password again: a session left open on an unlocked machine should not be
+  enough. An owner can require it panel-wide, and can reset it for someone who
+  lost both their phone and their codes — clearing it rather than revealing
+  anything.
+- **Sign-in throttling.** The form had a uniform 300ms delay and nothing else,
+  which is not an obstacle to a script. Failures are now counted against the
+  username *and* the source address, because counting only usernames lets one
+  attacker walk a list and counting only addresses lets a botnet spread a single
+  guess. Either crossing five failures in fifteen minutes locks further attempts
+  for 30 seconds, doubling to a fifteen minute cap. The lock is checked before
+  the password is, so the right password does not walk through it, and the
+  response carries `Retry-After` rather than leaving a client guessing. A
+  successful sign-in clears both counters, so a typo does not follow anyone
+  around. Lockouts are their own event kind, subscribable like any other.
+
 ### Changed
 
 - **The docs caught up with the code.** `API.md` had been left behind three

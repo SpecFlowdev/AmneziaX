@@ -26,10 +26,50 @@ means the session is gone; sign in again.
 
 | Method | Path | Notes |
 |---|---|---|
-| `POST` | `/api/auth/login` | Public. |
+| `POST` | `/api/auth/login` | Public. `{username, password, code}`. |
 | `GET` | `/api/auth/bootstrap-status` | Public. `{"initialized": bool}`. |
 | `GET` | `/api/auth/me` | The signed-in administrator. |
 | `POST` | `/api/auth/password` | `{currentPassword, newPassword}`. |
+
+Sign-in is one call when the account has no second factor, and two when it has.
+The first call omits `code`; if the account has two-factor the answer is `200`
+with `{"totpRequired": true}` and **no token** — the password was right, but
+that is not a session. Send the same credentials again with `code` set to a six
+digit code or one recovery code.
+
+When the panel requires two-factor and the account has none, the answer carries
+a token *and* `{"enrolTotp": true}`: enrolment needs a session, so one is
+issued, and the UI goes straight to setting the factor up.
+
+Repeated failures are throttled per username **and** per source address —
+either crossing five failures in fifteen minutes locks further attempts, first
+for 30 seconds and doubling to a fifteen minute cap. A locked attempt gets
+`429` and a `Retry-After` header, and is refused **before** the password is
+checked, so knowing the right password does not bypass a lockout. A successful
+sign-in clears both counters.
+
+### Two-factor
+
+Acts on the caller's own account, so no role is required — a read-only account
+still secures its own sign-in.
+
+| Method | Path | Notes |
+|---|---|---|
+| `GET` | `/api/totp` | `{enabled, confirmedAt, recoveryCodesLeft, requiredByPanel}`. |
+| `POST` | `/api/totp/start` | Stages a secret. `{secret, uri}` — `uri` is the `otpauth://` string a QR encodes. Not in force until confirmed. |
+| `POST` | `/api/totp/confirm` | `{code}`. Turns it on and returns `{recoveryCodes}` — **the only time they are readable**. |
+| `POST` | `/api/totp/disable` | `{password}`. Refused with `403` while the panel requires two-factor. |
+| `POST` | `/api/totp/recovery-codes` | `{password}`. A fresh set; the previous ones stop working. |
+| `POST` | `/api/admins/{uuid}/reset-totp` | Owner only. Clears someone else's factor when they lost both phone and codes; reveals nothing, so they must enrol again. |
+
+TOTP is RFC 6238 — HMAC-SHA1, six digits, a thirty second step — which is what
+authenticator apps implement. One step either side is accepted for clock drift.
+An accepted code's time step is recorded, so the same code cannot be used twice
+inside the window it stays valid; the code that confirms enrolment is burned the
+same way, so a first sign-in needs the next one.
+
+Recovery codes are single-use, stored only as digests, and matched ignoring case
+and the separator.
 
 ### Roles
 

@@ -12,7 +12,8 @@ import { api, getToken, onUnauthorized, setToken, type Admin } from './api'
 type AuthCtx = {
   admin: Admin | null
   ready: boolean
-  login: (username: string, password: string) => Promise<void>
+  /** Resolves to 'totp' when the password was right but a code is still needed. */
+  login: (username: string, password: string, code?: string) => Promise<'ok' | 'totp'>
   logout: () => void
   refresh: () => Promise<void>
   canWrite: boolean
@@ -53,13 +54,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const login = useCallback(async (username: string, password: string) => {
-    const res = await api.post<{ token: string; admin: Admin }>('/api/auth/login', {
-      username,
-      password,
-    })
-    setToken(res.token)
-    setAdmin(res.admin)
+  const login = useCallback(async (username: string, password: string, code?: string) => {
+    const res = await api.post<{
+      token?: string
+      admin?: Admin
+      totpRequired?: boolean
+      enrolTotp?: boolean
+      recoveryCodesLeft?: number
+    }>('/api/auth/login', { username, password, code })
+
+    // The password was right, but this is not a session yet — the form has to
+    // ask for a code before anything is stored.
+    if (res.totpRequired) return 'totp'
+
+    setToken(res.token ?? null)
+    setAdmin(res.admin ?? null)
+    if (res.enrolTotp) sessionStorage.setItem('amneziax.enrolTotp', '1')
+    if (typeof res.recoveryCodesLeft === 'number') {
+      sessionStorage.setItem('amneziax.recoveryLeft', String(res.recoveryCodesLeft))
+    }
+    return 'ok'
   }, [])
 
   const logout = useCallback(() => {

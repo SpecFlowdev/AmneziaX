@@ -34,6 +34,19 @@ type Admin struct {
 	LastLoginAt  *time.Time `json:"lastLoginAt"`
 	CreatedAt    time.Time  `json:"createdAt"`
 	UpdatedAt    time.Time  `json:"updatedAt"`
+
+	// Two-factor. The secret and the recovery digests never leave the panel —
+	// TOTPEnabled is all the UI needs, and anything more would put a working
+	// second factor into every response that carries an administrator.
+	TOTPSecret         string     `json:"-"`
+	TOTPEnabled        bool       `json:"totpEnabled"`
+	TOTPConfirmedAt    *time.Time `json:"totpConfirmedAt"`
+	TOTPLastStep       int64      `json:"-"`
+	RecoveryCodeHashes []string   `json:"-"`
+
+	// A count, never the codes: an operator needs to know they are running low,
+	// and nothing more can be given back once they have been shown.
+	RecoveryCodesLeft int `json:"recoveryCodesLeft"`
 }
 
 // ConfigProfile is a reusable xray-core configuration document. Nodes are bound
@@ -83,9 +96,12 @@ type Settings struct {
 	SubPageShowFormats bool `json:"subPageShowFormats"`
 	// Custom documents for the two formats that are whole config files rather
 	// than a list of links. Empty means the built-in template.
-	ClashTemplate   string    `json:"clashTemplate"`
-	SingBoxTemplate string    `json:"singboxTemplate"`
-	UpdatedAt       time.Time `json:"updatedAt"`
+	ClashTemplate   string `json:"clashTemplate"`
+	SingBoxTemplate string `json:"singboxTemplate"`
+	// RequireTOTP refuses a session to any administrator without a second
+	// factor, sending them to enrolment instead.
+	RequireTOTP bool      `json:"requireTotp"`
+	UpdatedAt   time.Time `json:"updatedAt"`
 }
 
 // BillingCycle is how often a node has to be paid for.
@@ -394,6 +410,10 @@ const (
 	EventUserExpired      EventKind = "USER_EXPIRED"
 	EventAdminLogin       EventKind = "ADMIN_LOGIN"
 	EventAdminLoginFailed EventKind = "ADMIN_LOGIN_FAILED"
+	// A second factor being turned on or off, and a sign-in locked for
+	// repeated failures — both are worth waking someone up for.
+	EventAdminSecurity EventKind = "ADMIN_SECURITY"
+	EventAdminLocked   EventKind = "ADMIN_LOCKED"
 	EventProfileUpdated   EventKind = "PROFILE_UPDATED"
 	EventNodePaymentDue   EventKind = "NODE_PAYMENT_DUE"
 	EventDeviceBlocked    EventKind = "DEVICE_LIMIT_REACHED"
@@ -406,7 +426,8 @@ const (
 var AllEventKinds = []EventKind{
 	EventNodeConnected, EventNodeDisconnected, EventNodeConfigPushed, EventNodeError,
 	EventUserCreated, EventUserUpdated, EventUserDeleted, EventUserLimited, EventUserExpired,
-	EventAdminLogin, EventAdminLoginFailed, EventProfileUpdated, EventNodePaymentDue,
+	EventAdminLogin, EventAdminLoginFailed, EventAdminSecurity, EventAdminLocked,
+	EventProfileUpdated, EventNodePaymentDue,
 	EventDeviceBlocked, EventSettingsUpdated,
 }
 

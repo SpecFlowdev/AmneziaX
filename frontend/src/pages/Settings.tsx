@@ -11,6 +11,7 @@ import {
   useAction,
   useToast,
 } from '../components/ui'
+import { TwoFactorCard } from '../components/TwoFactor'
 import { useI18n, type Lang } from '../i18n'
 import { api, type ApiToken, type Overview, type Settings as PanelSettings } from '../lib/api'
 import { useAuth } from '../lib/auth'
@@ -41,6 +42,7 @@ export function Settings() {
         <div className="stack" style={{ gap: 16 }}>
           {canWrite && <BrandingCard />}
           <AccountCard />
+          <TwoFactorCard />
         </div>
 
         <div className="stack" style={{ gap: 16 }}>
@@ -125,6 +127,7 @@ export function Settings() {
 
 function BrandingCard() {
   const { t } = useI18n()
+  const { isOwner } = useAuth()
   const { reload } = useBranding()
   const run = useAction()
   const { push } = useToast()
@@ -298,6 +301,19 @@ function BrandingCard() {
             <option value="singbox">sing-box</option>
           </select>
         </Field>
+
+        {isOwner && (
+          <Field label={t.totp.title} hint={t.totp.requireAllHint}>
+            <label className="checkbox">
+              <input
+                type="checkbox"
+                checked={draft.requireTotp ?? false}
+                onChange={(e) => set('requireTotp', e.target.checked)}
+              />
+              {t.totp.requireAll}
+            </label>
+          </Field>
+        )}
 
         <Field label={t.settings.subPage} hint={t.settings.subPageHint}>
           <div className="stack" style={{ gap: 8 }}>

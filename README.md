@@ -56,6 +56,8 @@ install already contains a working VLESS + REALITY profile.
 | **Sessions** | Who has carried traffic recently and through which node, from what the nodes already report. |
 | **Subscription templates** | Replace the built-in Clash or sing-box document with your own rules, DNS and proxy groups; the panel splices in the servers each subscriber is entitled to. |
 | **Subscription page options** | Choose what the subscriber sees on their own page — the format buttons and the raw connection links can each be hidden, and hidden links are never sent, not merely styled away. |
+| **Two-factor authentication** | TOTP from any authenticator app, with single-use recovery codes for when the phone is gone. An owner can require it panel-wide. An accepted code is burned, so one read over your shoulder is not reusable. |
+| **Sign-in throttling** | Failures are counted per username *and* per address; either crossing the threshold locks further attempts with a doubling backoff. A lockout is refused before the password is checked, so knowing it does not get you past. |
 | **Roles** | Owner, administrator and read-only accounts. |
 | **Bilingual UI** | Russian and English, dark and light themes. A neutral grey shell with crimson kept for the things that are actually interactive. |
 | **White-label branding** | Set the panel's name, logo and accent colour from Settings; they apply to the sidebar, the sign-in screen and the subscription page. |

@@ -34,6 +34,9 @@ type API struct {
 	// exercised without a live dispatcher.
 	notifier Notifier
 
+	// throttle slows down guessing at the sign-in form.
+	throttle *auth.Throttle
+
 	// Settings are read on nearly every request, including unauthenticated
 	// subscription fetches, so they are cached and refreshed on write.
 	settingsMu    sync.RWMutex
@@ -48,7 +51,8 @@ type Notifier interface {
 }
 
 func New(store *postgres.Store, h *hub.Hub, issuer *auth.Issuer, cfg *config.Panel, log *slog.Logger, notifier Notifier) *API {
-	return &API{store: store, hub: h, issuer: issuer, cfg: cfg, log: log, notifier: notifier}
+	return &API{store: store, hub: h, issuer: issuer, cfg: cfg, log: log, notifier: notifier,
+		throttle: auth.NewThrottle()}
 }
 
 const settingsTTL = 30 * time.Second
@@ -143,6 +147,18 @@ func (a *API) Router(ui http.Handler) http.Handler {
 				r.Get("/", a.ownerOnly(a.listTokens))
 				r.Post("/", a.ownerOnly(a.createToken))
 				r.Delete("/{id}", a.ownerOnly(a.deleteToken))
+			})
+
+			// Two-factor acts on the caller's own account, so these are not
+			// gated by role — a read-only account still secures its own
+			// sign-in. The only exception is the owner's reset for someone
+			// else, which lives under /admins.
+			r.Route("/totp", func(r chi.Router) {
+				r.Get("/", a.totpStatus)
+				r.Post("/start", a.totpStart)
+				r.Post("/confirm", a.totpConfirm)
+				r.Post("/disable", a.totpDisable)
+				r.Post("/recovery-codes", a.totpRecoveryCodes)
 			})
 
 			r.Route("/profiles", func(r chi.Router) {
@@ -254,6 +270,9 @@ func (a *API) Router(ui http.Handler) http.Handler {
 				r.Post("/", a.ownerOnly(a.createAdmin))
 				r.Put("/{id}", a.ownerOnly(a.updateAdmin))
 				r.Delete("/{id}", a.ownerOnly(a.deleteAdmin))
+				// The way back in for someone who lost both their phone and
+				// their recovery codes.
+				r.Post("/{id}/reset-totp", a.ownerOnly(a.totpResetForAdmin))
 			})
 		})
 	})
