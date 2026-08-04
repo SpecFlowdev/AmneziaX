@@ -412,12 +412,12 @@ const (
 	EventAdminLoginFailed EventKind = "ADMIN_LOGIN_FAILED"
 	// A second factor being turned on or off, and a sign-in locked for
 	// repeated failures — both are worth waking someone up for.
-	EventAdminSecurity EventKind = "ADMIN_SECURITY"
-	EventAdminLocked   EventKind = "ADMIN_LOCKED"
-	EventProfileUpdated   EventKind = "PROFILE_UPDATED"
-	EventNodePaymentDue   EventKind = "NODE_PAYMENT_DUE"
-	EventDeviceBlocked    EventKind = "DEVICE_LIMIT_REACHED"
-	EventSettingsUpdated  EventKind = "SETTINGS_UPDATED"
+	EventAdminSecurity   EventKind = "ADMIN_SECURITY"
+	EventAdminLocked     EventKind = "ADMIN_LOCKED"
+	EventProfileUpdated  EventKind = "PROFILE_UPDATED"
+	EventNodePaymentDue  EventKind = "NODE_PAYMENT_DUE"
+	EventDeviceBlocked   EventKind = "DEVICE_LIMIT_REACHED"
+	EventSettingsUpdated EventKind = "SETTINGS_UPDATED"
 )
 
 // AllEventKinds is the list a channel picks its subscriptions from, and the
