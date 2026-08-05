@@ -75,8 +75,9 @@ install already contains a working VLESS + REALITY profile.
 
 ## Protocols
 
-Everything a node serves is served by **xray-core**, so a node runs one process
-and an install needs one binary.
+A node serves them with one of three engines, and the profile says which:
+**xray-core**, **hysteria2** or **sing-box**. Most fleets need only the first,
+so the ordinary node runs one process and installs one binary.
 
 | | |
 |---|---|
@@ -89,18 +90,26 @@ and an install needs one binary.
 | **TUIC** | via sing-box |
 
 Transports follow whatever the profile document specifies — TCP, WebSocket,
-gRPC, HTTPUpgrade, XHTTP — because a profile *is* an xray document rather than a
-form the panel translates into one.
+gRPC, HTTPUpgrade, XHTTP — because a profile *is* the engine's own document
+rather than a form the panel translates into one. That is also why picking the
+engine is the first field in the profile editor: the document is validated,
+rendered and run by whichever engine you named, and the panel offers a working
+starter for each.
+
+Access does not change with the engine. A squad grants an inbound, a host
+publishes it, a user who runs out of traffic is dropped from the running
+configuration — identically whichever of the three is behind it.
 
 Hysteria2 is not an xray protocol — xray answers `unknown config id` for it —
 so a node serving it runs a second binary beside xray-core, installed by the
 node installer. Adding it to a node that already exists means re-running that
 installer.
 
-**Not served, and why.** OpenVPN and Cloak. OpenVPN and Cloak are further still: OpenVPN
-brings a TUN device and its own certificate authority, and Cloak is an
-obfuscation layer in front of a proxy with its own key material and user list.
-Neither fits "a profile is one document", and neither is claimed here.
+**Not served, and why.** OpenVPN and Cloak. OpenVPN brings a TUN device and its
+own certificate authority — a certificate to issue, store and revoke per
+subscriber — and Cloak is an obfuscation layer in front of a proxy with its own
+key material and user list. Neither is a swap of the engine behind a document,
+so neither is claimed here.
 
 ## Quick start
 
@@ -229,6 +238,10 @@ algorithm.
 |---|---|
 | <img src="docs/assets/nodes.png" alt="The nodes page" width="100%"> | <img src="docs/assets/users.png" alt="The users page" width="100%"> |
 
+| Config profiles | Picking the engine |
+|---|---|
+| <img src="docs/assets/profiles.png" alt="Profiles for three different engines" width="100%"> | <img src="docs/assets/profile-editor.png" alt="The engine selector and a starter document" width="100%"> |
+
 | Notifications | Response rules |
 |---|---|
 | <img src="docs/assets/notifications.png" alt="Notification channels" width="100%"> | <img src="docs/assets/rules.png" alt="Response rules" width="100%"> |
@@ -251,7 +264,9 @@ algorithm.
 
 Live telemetry per node, one-line install commands, rendered configuration and
 log access on the nodes page; quotas, squads, devices and subscription links on
-the users page. The inspectors answer who fetched what and who is moving
+the users page. A profile names the engine that will run it, and the editor
+fills the box with a document for that engine that already works. The
+inspectors answer who fetched what and who is moving
 traffic; Settings is where the subscription format, the subscriber's page and
 the Clash and sing-box templates are set. The key in the enrolment picture is
 the RFC's example value, not a live one.
