@@ -313,11 +313,13 @@ func (h *Hub) BuildNodeConfig(ctx context.Context, node *domain.Node) ([]byte, s
 	clients := map[string][]xray.Client{}
 	for _, p := range provisioned {
 		clients[p.InboundTag] = append(clients[p.InboundTag], xray.Client{
-			Email:      p.UUID + "." + p.Username,
-			VlessUUID:  p.VlessUUID,
-			TrojanPass: p.TrojanPassword,
-			SSPass:     p.SSPassword,
-			Flow:       flowByTag[p.InboundTag],
+			Email:       p.UUID + "." + p.Username,
+			VlessUUID:   p.VlessUUID,
+			TrojanPass:  p.TrojanPassword,
+			SSPass:      p.SSPassword,
+			Flow:        flowByTag[p.InboundTag],
+			WGPublicKey: p.WGPublicKey,
+			WGAddress:   xray.WireGuardAddress(p.WGIndex),
 		})
 	}
 

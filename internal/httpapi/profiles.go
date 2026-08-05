@@ -147,3 +147,39 @@ func (a *API) realityKeys(w http.ResponseWriter, r *http.Request) {
 		"shortIds":   ids,
 	})
 }
+
+type wireguardKeysRequest struct {
+	// Given a private key, the answer is its public half. Left empty, a fresh
+	// pair is generated instead.
+	PrivateKey string `json:"privateKey"`
+}
+
+// wireguardKeys generates a server key pair, or derives the public half of one
+// the operator already has. A WireGuard host must name the server's public key,
+// and deriving it beats asking someone to keep the two halves straight by hand.
+func (a *API) wireguardKeys(w http.ResponseWriter, r *http.Request) {
+	var req wireguardKeysRequest
+	if r.ContentLength > 0 {
+		if err := decode(r, &req); err != nil {
+			writeErr(w, http.StatusBadRequest, err.Error())
+			return
+		}
+	}
+
+	if key := strings.TrimSpace(req.PrivateKey); key != "" {
+		pub, err := xray.WireGuardPublicKey(key)
+		if err != nil {
+			writeErr(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"publicKey": pub})
+		return
+	}
+
+	priv, pub, err := xray.NewWireGuardKey()
+	if err != nil {
+		a.storeErr(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"privateKey": priv, "publicKey": pub})
+}

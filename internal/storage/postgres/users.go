@@ -13,7 +13,8 @@ import (
 const userColumns = `uuid, short_uuid, username, subscription_uuid, vless_uuid, trojan_password, ss_password,
 	status, traffic_limit_bytes, used_traffic_bytes, lifetime_traffic_bytes, traffic_reset_strategy,
 	last_traffic_reset_at, expire_at, online_at, description, tag, email, telegram_id, hwid_device_limit,
-	sub_last_user_agent, sub_last_opened_at, sub_revoked_at, created_at, updated_at`
+	sub_last_user_agent, sub_last_opened_at, sub_revoked_at, wg_private_key, wg_public_key, wg_index,
+	created_at, updated_at`
 
 func scanUser(row interface{ Scan(...any) error }) (*domain.User, error) {
 	var u domain.User
@@ -21,7 +22,7 @@ func scanUser(row interface{ Scan(...any) error }) (*domain.User, error) {
 		&u.SSPassword, &u.Status, &u.TrafficLimitBytes, &u.UsedTrafficBytes, &u.LifetimeTrafficBytes,
 		&u.TrafficResetPolicy, &u.LastTrafficResetAt, &u.ExpireAt, &u.OnlineAt, &u.Description, &u.Tag,
 		&u.Email, &u.TelegramID, &u.HWIDDeviceLimit, &u.SubLastUA, &u.SubLastOpenedAt, &u.SubRevokedAt,
-		&u.CreatedAt, &u.UpdatedAt)
+		&u.WGPrivateKey, &u.WGPublicKey, &u.WGIndex, &u.CreatedAt, &u.UpdatedAt)
 	if err != nil {
 		return nil, mapErr(err)
 	}
@@ -48,6 +49,8 @@ type UserSecrets struct {
 	VlessUUID        string
 	TrojanPassword   string
 	SSPassword       string
+	WGPrivateKey     string
+	WGPublicKey      string
 }
 
 func (s *Store) CreateUser(ctx context.Context, in UserInput, sec UserSecrets) (*domain.User, error) {
@@ -60,11 +63,12 @@ func (s *Store) CreateUser(ctx context.Context, in UserInput, sec UserSecrets) (
 	id := uuid.NewString()
 	_, err = tx.Exec(ctx, `INSERT INTO users
 		(uuid, short_uuid, username, subscription_uuid, vless_uuid, trojan_password, ss_password, status,
-		 traffic_limit_bytes, traffic_reset_strategy, expire_at, description, tag, email, telegram_id, hwid_device_limit)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
+		 traffic_limit_bytes, traffic_reset_strategy, expire_at, description, tag, email, telegram_id, hwid_device_limit,
+		 wg_private_key, wg_public_key)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`,
 		id, sec.ShortUUID, in.Username, sec.SubscriptionUUID, sec.VlessUUID, sec.TrojanPassword, sec.SSPassword,
 		in.Status, in.TrafficLimitBytes, in.TrafficReset, in.ExpireAt, in.Description, in.Tag, in.Email,
-		in.TelegramID, in.HWIDDeviceLimit)
+		in.TelegramID, in.HWIDDeviceLimit, sec.WGPrivateKey, sec.WGPublicKey)
 	if err != nil {
 		return nil, mapErr(err)
 	}
@@ -290,13 +294,16 @@ type ProvisionedUser struct {
 	TrojanPassword string
 	SSPassword     string
 	InboundTag     string
+	WGPublicKey    string
+	WGIndex        int64
 }
 
 // UsersForNode returns every (user, inbound tag) pair that should be present in
 // the config of the given node: active users, in a squad, whose squad grants an
 // inbound of the node's profile that the node actually serves.
 func (s *Store) UsersForNode(ctx context.Context, profileID string, inboundTags []string) ([]ProvisionedUser, error) {
-	rows, err := s.pool.Query(ctx, `SELECT DISTINCT u.uuid, u.username, u.vless_uuid, u.trojan_password, u.ss_password, i.tag
+	rows, err := s.pool.Query(ctx, `SELECT DISTINCT u.uuid, u.username, u.vless_uuid, u.trojan_password, u.ss_password, i.tag,
+		       u.wg_public_key, u.wg_index
 		FROM users u
 		JOIN user_squads us ON us.user_uuid = u.uuid
 		JOIN squad_inbounds si ON si.squad_uuid = us.squad_uuid
@@ -313,7 +320,8 @@ func (s *Store) UsersForNode(ctx context.Context, profileID string, inboundTags 
 	out := []ProvisionedUser{}
 	for rows.Next() {
 		var p ProvisionedUser
-		if err := rows.Scan(&p.UUID, &p.Username, &p.VlessUUID, &p.TrojanPassword, &p.SSPassword, &p.InboundTag); err != nil {
+		if err := rows.Scan(&p.UUID, &p.Username, &p.VlessUUID, &p.TrojanPassword, &p.SSPassword, &p.InboundTag,
+			&p.WGPublicKey, &p.WGIndex); err != nil {
 			return nil, mapErr(err)
 		}
 		out = append(out, p)
@@ -405,4 +413,35 @@ func (s *Store) UserTags(ctx context.Context) ([]string, error) {
 		out = append(out, t)
 	}
 	return out, mapErr(rows.Err())
+}
+
+// UsersMissingWireGuardKeys returns the users created before WireGuard existed,
+// so the panel can give them a key pair without an operator touching anything.
+func (s *Store) UsersMissingWireGuardKeys(ctx context.Context, limit int) ([]string, error) {
+	rows, err := s.pool.Query(ctx,
+		`SELECT uuid FROM users WHERE wg_public_key = '' ORDER BY created_at LIMIT $1`, limit)
+	if err != nil {
+		return nil, mapErr(err)
+	}
+	defer rows.Close()
+
+	out := []string{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, mapErr(err)
+		}
+		out = append(out, id)
+	}
+	return out, mapErr(rows.Err())
+}
+
+// SetWireGuardKeys fills in a key pair, but only where one is not already set —
+// so two panels racing on the same database cannot hand the same subscriber two
+// different keys, one of which would silently never connect.
+func (s *Store) SetWireGuardKeys(ctx context.Context, id, private, public string) error {
+	_, err := s.pool.Exec(ctx,
+		`UPDATE users SET wg_private_key = $2, wg_public_key = $3
+		 WHERE uuid = $1 AND wg_public_key = ''`, id, private, public)
+	return mapErr(err)
 }

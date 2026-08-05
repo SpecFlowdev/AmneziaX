@@ -80,13 +80,20 @@ func (a *API) subURL(u *domain.User) string {
 }
 
 func newUserSecrets() postgres.UserSecrets {
-	return postgres.UserSecrets{
+	sec := postgres.UserSecrets{
 		ShortUUID:        auth.RandomSecret(12),
 		SubscriptionUUID: uuid.NewString(),
 		VlessUUID:        uuid.NewString(),
 		TrojanPassword:   xray.GeneratePassword(16),
 		SSPassword:       xray.GeneratePassword(32),
 	}
+	// A WireGuard pair is generated for everyone, whether or not the deployment
+	// serves WireGuard today. Generating it later would mean an existing
+	// subscriber's link starts working only after some background pass has run.
+	if priv, pub, err := xray.NewWireGuardKey(); err == nil {
+		sec.WGPrivateKey, sec.WGPublicKey = priv, pub
+	}
+	return sec
 }
 
 func (a *API) listUsers(w http.ResponseWriter, r *http.Request) {

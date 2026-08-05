@@ -64,6 +64,7 @@ install already contains a working VLESS + REALITY profile.
 | **CSV export** | The user list, filters applied, in the format every billing system and spreadsheet already reads. |
 | **Warnings before a cutoff** | An expiry date and a traffic quota both take service away on a schedule, and both used to be visible only after the fact. Subscribers are now warned ahead of each, as events a webhook or Telegram channel can subscribe to. Each is sent once, not once a minute — the claim marks the row in the same statement that reads it — and a renewal or a monthly reset re-arms it. |
 | **Needs-attention panel** | One card on the dashboard: nodes offline, degraded or over quota, subscribers cut off, expiring or near their limit, node payments due this week — with names, not just counts. When nothing is wrong it says so in one line. |
+| **WireGuard** | Served by xray-core itself, so a node needs no second binary and no reinstall. Each subscriber gets their own Curve25519 pair and a fixed address inside the tunnel; the node is given only public keys, and the ready `.conf` comes down the same subscription link as everything else. |
 | **Roles** | Owner, administrator and read-only accounts. |
 | **Bilingual UI** | Russian and English, dark and light themes. A neutral grey shell with crimson kept for the things that are actually interactive. |
 | **White-label branding** | Set the panel's name, logo and accent colour from Settings; they apply to the sidebar, the sign-in screen and the subscription page. |

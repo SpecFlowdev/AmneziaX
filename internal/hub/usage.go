@@ -7,6 +7,7 @@ import (
 
 	nodev1 "github.com/SpecFlowdev/AmneziaX/gen/go/node/v1"
 	"github.com/SpecFlowdev/AmneziaX/internal/domain"
+	"github.com/SpecFlowdev/AmneziaX/internal/xray"
 )
 
 // handleUsage charges a usage report to the users and the node that produced it.
@@ -135,6 +136,7 @@ func (h *Hub) RunMaintenance(ctx context.Context) {
 		}
 
 		h.warnBeforeCutoff(ctx)
+		h.backfillWireGuardKeys(ctx)
 
 		// Heartbeat samples and delivery receipts both accumulate a row per
 		// minute per node and per notification, and neither is interesting once
@@ -212,5 +214,39 @@ func (h *Hub) warnBeforeCutoff(ctx context.Context) {
 	if n := len(expiring) + len(nearQuota); n > 0 {
 		h.log.Info("subscribers warned before cutoff",
 			"expiring", len(expiring), "nearQuota", len(nearQuota))
+	}
+}
+
+// backfillWireGuardKeys gives a key pair to users created before WireGuard was
+// a thing here. It runs in the maintenance loop rather than at boot so a large
+// deployment is filled a batch at a time instead of holding up start-up, and it
+// costs one cheap query once everything has a key.
+func (h *Hub) backfillWireGuardKeys(ctx context.Context) {
+	ids, err := h.store.UsersMissingWireGuardKeys(ctx, 200)
+	if err != nil {
+		h.log.Warn("maintenance: find users without wireguard keys", "error", err)
+		return
+	}
+	if len(ids) == 0 {
+		return
+	}
+	filled := 0
+	for _, id := range ids {
+		priv, pub, err := xray.NewWireGuardKey()
+		if err != nil {
+			h.log.Error("maintenance: generate wireguard key", "error", err)
+			return
+		}
+		if err := h.store.SetWireGuardKeys(ctx, id, priv, pub); err != nil {
+			h.log.Warn("maintenance: store wireguard key", "user", id, "error", err)
+			continue
+		}
+		filled++
+	}
+	h.log.Info("wireguard keys filled in", "count", filled)
+	// New peers mean a different node configuration, so the nodes need to hear
+	// about it — otherwise the key exists but the tunnel refuses the peer.
+	if filled > 0 {
+		h.RequestSyncAll(ctx)
 	}
 }

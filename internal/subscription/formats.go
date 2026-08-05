@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/SpecFlowdev/AmneziaX/internal/domain"
+	"github.com/SpecFlowdev/AmneziaX/internal/xray"
 )
 
 // Format is a subscription encoding a client understands.
@@ -18,11 +19,13 @@ const (
 	FormatClash   Format = "clash"
 	FormatSingBox Format = "singbox"
 	FormatJSON    Format = "json"
+	// WireGuard has no URI scheme, so its "format" is the .conf file itself.
+	FormatWireGuard Format = "wireguard"
 )
 
 func (f Format) Valid() bool {
 	switch f {
-	case FormatBase64, FormatPlain, FormatClash, FormatSingBox, FormatJSON:
+	case FormatBase64, FormatPlain, FormatClash, FormatSingBox, FormatJSON, FormatWireGuard:
 		return true
 	}
 	return false
@@ -512,6 +515,8 @@ func Render(b Bundle, f Format) string {
 		return SingBox(b)
 	case FormatJSON:
 		return XrayJSON(b)
+	case FormatWireGuard:
+		return WireGuardConf(b)
 	case FormatPlain:
 		return strings.Join(Links(b), "\n")
 	default:
@@ -607,4 +612,42 @@ func applySingBoxTemplate(b Bundle, tpl string) string {
 	out := strings.ReplaceAll(tpl, PlaceholderOutbounds, strings.TrimSpace(inner))
 	out = strings.ReplaceAll(out, PlaceholderTags, strings.Join(quoted, ", "))
 	return strings.ReplaceAll(out, PlaceholderTitle, b.Title)
+}
+
+// WireGuardConf renders the subscriber's tunnel as the .conf file every
+// WireGuard client reads — there is no URI scheme for WireGuard the way there
+// is for VLESS, so a file is the only thing to hand over.
+//
+// One file is one tunnel. When several WireGuard hosts are published the first
+// enabled one wins rather than emitting several [Peer] blocks: two peers both
+// claiming 0.0.0.0/0 is a configuration whose behaviour depends on the client,
+// and a config that works differently on iOS and on Windows is worse than one
+// that names a single server.
+func WireGuardConf(b Bundle) string {
+	var host *domain.Host
+	for i := range b.Hosts {
+		if strings.EqualFold(b.Hosts[i].InboundType, "wireguard") && !b.Hosts[i].IsDisabled {
+			host = &b.Hosts[i]
+			break
+		}
+	}
+	if host == nil || b.User == nil || b.User.WGPrivateKey == "" {
+		return "# no WireGuard server is published for this subscription\n"
+	}
+
+	var out strings.Builder
+	fmt.Fprintf(&out, "# %s — %s\n", b.Title, host.Remark)
+	out.WriteString("[Interface]\n")
+	fmt.Fprintf(&out, "PrivateKey = %s\n", b.User.WGPrivateKey)
+	fmt.Fprintf(&out, "Address = %s\n", xray.WireGuardAddress(b.User.WGIndex))
+	out.WriteString("DNS = 1.1.1.1, 1.0.0.1\n")
+	out.WriteString("MTU = 1420\n\n")
+
+	out.WriteString("[Peer]\n")
+	fmt.Fprintf(&out, "PublicKey = %s\n", host.PublicKey)
+	out.WriteString("AllowedIPs = 0.0.0.0/0, ::/0\n")
+	fmt.Fprintf(&out, "Endpoint = %s:%d\n", host.Address, host.Port)
+	// Keeps the tunnel alive through NAT, which is where a phone lives.
+	out.WriteString("PersistentKeepalive = 25\n")
+	return out.String()
 }

@@ -148,6 +148,12 @@ type Client struct {
 	TrojanPass string
 	SSPass     string
 	Flow       string
+
+	// WireGuard identifies a peer by its public key and the address it may use
+	// inside the tunnel. The private half never leaves the panel — a node only
+	// ever needs the public key.
+	WGPublicKey string
+	WGAddress   string
 }
 
 const (
@@ -295,6 +301,23 @@ func injectClients(raw json.RawMessage, protocol string, clients []Client) (json
 			entries = append(entries, map[string]any{"password": c.SSPass, "email": c.Email, "level": 0})
 		}
 		if err := setJSON(settings, "clients", entries); err != nil {
+			return nil, err
+		}
+	case "wireguard":
+		// A peer list, not a client list. A user without a key is skipped
+		// rather than written as an empty peer: xray rejects that outright,
+		// which would take the inbound down for everybody else too.
+		entries := make([]map[string]any, 0, len(clients))
+		for _, c := range clients {
+			if c.WGPublicKey == "" || c.WGAddress == "" {
+				continue
+			}
+			entries = append(entries, map[string]any{
+				"publicKey":  c.WGPublicKey,
+				"allowedIPs": []string{c.WGAddress},
+			})
+		}
+		if err := setJSON(settings, "peers", entries); err != nil {
 			return nil, err
 		}
 	default:

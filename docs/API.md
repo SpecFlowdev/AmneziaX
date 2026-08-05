@@ -110,6 +110,7 @@ emitted as the subscribable events `USER_EXPIRING_SOON` and
 | `PUT` | `/api/profiles/{uuid}` | Validates, saves, and pushes to every bound node. |
 | `DELETE` | `/api/profiles/{uuid}` | `409` while any node still uses it. |
 | `POST` | `/api/profiles/tools/reality-keys` | `{privateKey, publicKey, shortIds}`. |
+| `POST` | `/api/profiles/tools/wireguard-keys` | A fresh server pair, or — given `{privateKey}` — the public half of one you already have. A WireGuard host must name the server's *public* key, and deriving it beats keeping the two halves straight by hand. |
 
 The `config` field is a full Xray document. Validation requires at least one
 inbound and one outbound, a unique non-empty `tag` on every inbound, and rejects
@@ -379,6 +380,7 @@ Public. The token is either the user's `subscriptionUuid` or their `shortUuid`.
 | `GET` | `/sub/{token}/links` | The plain link list. |
 | `GET` | `/sub/{token}/clash` | Clash / Mihomo YAML. |
 | `GET` | `/sub/{token}/singbox` | sing-box JSON. |
+| `GET` | `/sub/{token}/wireguard` | The subscriber's WireGuard `.conf`. There is no URI scheme for WireGuard, so the file is the only thing to hand over. |
 | `GET` | `/sub/{token}/json` | A full Xray client config — inbounds, outbounds, routing and DNS — ready to drop into an Xray-based app. |
 | `GET` | `/sub/{token}/info` | Quota, expiry, visible announcements and the links, used by the subscription page. |
 
@@ -386,7 +388,21 @@ Public. The token is either the user's `subscriptionUuid` or their `shortUuid`.
 then the client's `User-Agent` if it identifies itself (Clash, Mihomo, Stash and
 FlClash get YAML; sing-box, Hiddify and Karing get JSON), then the first
 matching response rule, then the panel's configured default, and finally base64.
-`?format=base64|plain|clash|singbox|json` overrides everything.
+`?format=base64|plain|clash|singbox|json|wireguard` overrides everything.
+
+### WireGuard
+
+Xray-core serves WireGuard, so it needs no second binary on a node. Unlike the
+other protocols it identifies a peer by a key pair rather than a shared secret,
+so every subscriber gets their own Curve25519 pair and a fixed address inside
+the tunnel. The node receives only public keys; the private half stays in the
+panel because the panel is what hands out the `.conf`.
+
+Publish a WireGuard inbound as a host with the server's **public** key in
+`publicKey` and the UDP port in `port`. One `.conf` is one tunnel: when several
+WireGuard hosts are published the first enabled one is served, rather than
+emitting two `[Peer]` blocks both claiming `0.0.0.0/0` — that is a file whose
+behaviour depends on which client opens it.
 
 The Clash and sing-box documents can be replaced with your own from Settings;
 the panel splices the servers each subscriber is entitled to into `{{PROXIES}}`,

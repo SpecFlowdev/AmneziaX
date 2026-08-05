@@ -190,6 +190,7 @@ export function Subscription() {
                       ['json', 'Xray JSON'],
                       ['clash', 'Clash'],
                       ['singbox', 'sing-box'],
+                      ['wireguard', 'WireGuard'],
                     ] as const
                   ).map(([key, label]) => (
                     <a

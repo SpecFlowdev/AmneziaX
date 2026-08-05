@@ -253,6 +253,10 @@ func (a *API) subscriptionSingBox(w http.ResponseWriter, r *http.Request) {
 	a.serveFormat(w, r, subscription.FormatSingBox)
 }
 
+func (a *API) subscriptionWireGuard(w http.ResponseWriter, r *http.Request) {
+	a.serveFormat(w, r, subscription.FormatWireGuard)
+}
+
 func (a *API) serveFormat(w http.ResponseWriter, r *http.Request, f subscription.Format) {
 	bundle, ok := a.subscriptionBundle(w, r)
 	if !ok {

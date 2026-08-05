@@ -172,6 +172,9 @@ func (a *API) Router(ui http.Handler) http.Handler {
 				r.Get("/inbounds", a.listInbounds)
 				r.Post("/", a.writable(a.createProfile))
 				r.Post("/tools/reality-keys", a.writable(a.realityKeys))
+				// A WireGuard host has to name the server's *public* key,
+				// which an operator only has the private half of.
+				r.Post("/tools/wireguard-keys", a.writable(a.wireguardKeys))
 				r.Get("/{id}", a.getProfile)
 				r.Put("/{id}", a.writable(a.updateProfile))
 				r.Delete("/{id}", a.writable(a.deleteProfile))
@@ -320,6 +323,9 @@ func (a *API) Router(ui http.Handler) http.Handler {
 		r.Method(method, "/sub/{token}/json", http.HandlerFunc(a.subscriptionJSON))
 		r.Method(method, "/sub/{token}/clash", http.HandlerFunc(a.subscriptionClash))
 		r.Method(method, "/sub/{token}/singbox", http.HandlerFunc(a.subscriptionSingBox))
+		// WireGuard has no URI scheme, so the .conf file is the only thing to
+		// hand a subscriber.
+		r.Method(method, "/sub/{token}/wireguard", http.HandlerFunc(a.subscriptionWireGuard))
 	}
 
 	if ui != nil {

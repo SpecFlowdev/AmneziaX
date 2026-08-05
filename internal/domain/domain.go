@@ -374,6 +374,15 @@ type User struct {
 
 	SquadIDs []string `json:"squadUuids"`
 	Squads   []Squad  `json:"squads,omitempty"`
+
+	// WireGuard needs a key pair per subscriber rather than a shared secret.
+	// The private half is stored because the panel is what hands out the
+	// .conf; only the public half ever reaches a node.
+	WGPrivateKey string `json:"-"`
+	WGPublicKey  string `json:"-"`
+	// A stable number the tunnel address is derived from, so an address never
+	// moves under a subscriber who already imported their configuration.
+	WGIndex int64 `json:"-"`
 }
 
 // XrayEmail is the identity xray-core reports usage under. Keeping the uuid in

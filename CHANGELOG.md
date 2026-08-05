@@ -10,6 +10,31 @@ that follows the stable channel.
 
 ## [Unreleased]
 
+## [0.10.0] — 2026-08-05
+
+### Added
+
+- **WireGuard as a served protocol.** Xray-core carries a WireGuard inbound, so
+  this needed no second core on a node and no reinstall of anything already
+  running — which is why it is the one of the requested protocols that could
+  ship without touching a single node.
+  WireGuard does not have a shared secret the way the other protocols do: a peer
+  *is* a Curve25519 key pair. Every subscriber therefore gets their own pair and
+  a fixed address inside the tunnel, derived from a stable per-user number so an
+  address never moves under someone who already imported their configuration.
+  Only public keys ever reach a node. The private half stays in the panel
+  because the panel is what hands out the `.conf`, which is also the only thing
+  to hand over — WireGuard has no `://` URI scheme, so there is no link form.
+  A user with no key is skipped rather than written as an empty peer, since xray
+  refuses that outright and would take the inbound down for everyone else.
+  Keys are generated for every user, including those created before this
+  existed, so a subscriber's WireGuard config is never waiting on a background
+  pass to start working.
+  Settings gained a helper that derives a server's public key from its private
+  one, because a host has to name the public half and keeping the two straight
+  by hand is exactly the sort of thing that fails silently.
+
+
 ## [0.9.0] — 2026-08-05
 
 ### Added
