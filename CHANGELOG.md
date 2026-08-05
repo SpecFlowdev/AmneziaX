@@ -10,6 +10,22 @@ that follows the stable channel.
 
 ## [Unreleased]
 
+## [0.10.1] — 2026-08-05
+
+### Changed
+
+- Both READMEs now state which protocols a node actually serves, and which it
+  does not. The list was implicit in the profile documents and nowhere in prose,
+  so "does it do Hysteria2" had no answer short of trying it. Hysteria2 and TUIC
+  are not xray protocols — xray answers `unknown config id` for both — and
+  serving them needs a second binary on every node, an agent that supervises
+  more than one process, and a second statistics path, which is a node-side
+  change that cannot arrive without reinstalling agents already running.
+  OpenVPN and Cloak are further out still: a TUN device and a certificate
+  authority in one case, an obfuscation layer with its own key material and user
+  list in the other. Saying so plainly beats leaving it to be discovered.
+
+
 ## [0.10.0] — 2026-08-05
 
 ### Added

@@ -73,6 +73,32 @@ install already contains a working VLESS + REALITY profile.
 | **Device limits** | Clients that send a hardware id are tracked and capped per user; devices are listed and can be forgotten individually. |
 | **API tokens** | Scoped tokens for bots, billing systems and provisioning scripts. |
 
+## Protocols
+
+Everything a node serves is served by **xray-core**, so a node runs one process
+and an install needs one binary.
+
+| | |
+|---|---|
+| **VLESS** | including REALITY and XTLS-Vision |
+| **VMess** | |
+| **Trojan** | |
+| **Shadowsocks** | |
+| **WireGuard** | a Curve25519 key pair and a fixed tunnel address per subscriber |
+
+Transports follow whatever the profile document specifies — TCP, WebSocket,
+gRPC, HTTPUpgrade, XHTTP — because a profile *is* an xray document rather than a
+form the panel translates into one.
+
+**Not served, and why.** Hysteria2 and TUIC are not xray protocols; xray answers
+`unknown config id` for both. Serving them means a second binary on every node,
+an agent that supervises more than one process, and a second traffic-statistics
+path — that is a node-side change, so it cannot arrive without reinstalling the
+agent on servers already running. OpenVPN and Cloak are further still: OpenVPN
+brings a TUN device and its own certificate authority, and Cloak is an
+obfuscation layer in front of a proxy with its own key material and user list.
+Neither fits "a profile is one document", and neither is claimed here.
+
 ## Quick start
 
 Point a DNS **A record** at your server first — the certificate is issued over
