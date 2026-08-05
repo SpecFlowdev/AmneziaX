@@ -102,6 +102,7 @@ type Agent struct {
 
 	XrayBinary     string
 	HysteriaBinary string
+	SingBoxBinary  string
 	XrayWorkDir    string
 	// XrayAPIAddr is the local address of the xray stats API injected into the
 	// generated configuration.
@@ -119,6 +120,7 @@ func LoadAgent() (*Agent, error) {
 		ServerName:     env("PANEL_GRPC_SERVER_NAME", ""),
 		XrayBinary:     env("XRAY_BINARY", "/usr/local/bin/xray"),
 		HysteriaBinary: env("HYSTERIA_BINARY", "/usr/local/bin/hysteria"),
+		SingBoxBinary:  env("SINGBOX_BINARY", "/usr/local/bin/sing-box"),
 		XrayWorkDir:    env("XRAY_WORKDIR", "/var/lib/amneziax-node"),
 		XrayAPIAddr:    env("XRAY_API_ADDR", "127.0.0.1:10085"),
 		LogLevel:       env("LOG_LEVEL", "info"),

@@ -8,6 +8,7 @@ import (
 
 	"github.com/SpecFlowdev/AmneziaX/internal/domain"
 	"github.com/SpecFlowdev/AmneziaX/internal/hysteria"
+	"github.com/SpecFlowdev/AmneziaX/internal/singbox"
 	"github.com/SpecFlowdev/AmneziaX/internal/xray"
 	"github.com/go-chi/chi/v5"
 )
@@ -53,6 +54,19 @@ func profileInbounds(kind domain.ProfileKind, config json.RawMessage) ([]domain.
 			Port:     port,
 		}}, nil
 	}
+	if kind == domain.ProfileSingBox {
+		ins, err := singbox.ParseInbounds(config)
+		if err != nil {
+			return nil, err
+		}
+		out := make([]domain.ConfigProfileInbound, 0, len(ins))
+		for _, in := range ins {
+			out = append(out, domain.ConfigProfileInbound{
+				Tag: in.Tag, Type: in.Type, Network: "udp", Security: "tls", Port: in.Port,
+			})
+		}
+		return out, nil
+	}
 	return xray.ParseInbounds(config)
 }
 
@@ -63,6 +77,8 @@ func validateProfile(kind domain.ProfileKind, config json.RawMessage) error {
 	switch kind {
 	case domain.ProfileHysteria2:
 		return hysteria.Validate(config)
+	case domain.ProfileSingBox:
+		return singbox.Validate(config)
 	case domain.ProfileXray, "":
 		return xray.Validate(config)
 	default:

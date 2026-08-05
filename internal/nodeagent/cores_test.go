@@ -12,9 +12,12 @@ import (
 
 func testAgent(hysteriaBinary string) *Agent {
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	// Both engines are always present on a real agent, so the fixture has both
+	// — a nil one here would only prove the test forgot something.
 	return &Agent{
 		log:      log,
 		hysteria: NewHysteria(hysteriaBinary, "/tmp/amneziax-test-agent", log),
+		singbox:  NewSingBox("", "/tmp/amneziax-test-agent", log),
 	}
 }
 
@@ -56,6 +59,19 @@ func TestExtraCoresSaysSoWhenHysteriaIsNotInstalled(t *testing.T) {
 	// The message has to tell the operator what to do about it.
 	if !strings.Contains(err.Error(), "installer") {
 		t.Fatalf("the error does not say how to fix it: %v", err)
+	}
+}
+
+func TestExtraCoresSaysSoWhenSingBoxIsNotInstalled(t *testing.T) {
+	a := testAgent("")
+	err := a.applyExtraCores(context.Background(), &nodev1.ApplyConfig{
+		Cores: []*nodev1.CoreConfig{{Kind: "singbox", Config: []byte(`{"inbounds":[]}`)}},
+	})
+	if err == nil {
+		t.Fatal("a node without sing-box must report that rather than silently do nothing")
+	}
+	if !strings.Contains(err.Error(), "sing-box") {
+		t.Fatalf("the error does not name the engine: %v", err)
 	}
 }
 

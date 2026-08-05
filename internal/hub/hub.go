@@ -18,6 +18,7 @@ import (
 
 	"github.com/SpecFlowdev/AmneziaX/internal/domain"
 	"github.com/SpecFlowdev/AmneziaX/internal/hysteria"
+	"github.com/SpecFlowdev/AmneziaX/internal/singbox"
 	"github.com/SpecFlowdev/AmneziaX/internal/storage/postgres"
 	"github.com/SpecFlowdev/AmneziaX/internal/xray"
 	"github.com/google/uuid"
@@ -481,7 +482,11 @@ func (h *Hub) buildExtraCores(ctx context.Context, node *domain.Node) ([]*nodev1
 	if err != nil {
 		return nil, "", err
 	}
-	if profile.Kind != domain.ProfileHysteria2 {
+	switch profile.Kind {
+	case domain.ProfileHysteria2:
+	case domain.ProfileSingBox:
+		return h.buildSingBoxCore(ctx, node, profile)
+	default:
 		return nil, "", nil
 	}
 
@@ -523,5 +528,46 @@ func (h *Hub) nodeRunsXray(ctx context.Context, node *domain.Node) (bool, error)
 	if err != nil {
 		return false, err
 	}
-	return profile.Kind != domain.ProfileHysteria2, nil
+	return profile.Kind != domain.ProfileHysteria2 && profile.Kind != domain.ProfileSingBox, nil
+}
+
+// buildSingBoxCore renders the sing-box document for a node, with the users
+// each of its inbounds should serve.
+//
+// Unlike hysteria, sing-box has real inbounds, so access works exactly as it
+// does for xray: a squad grants an inbound, and only the users reachable
+// through it are written into that inbound.
+func (h *Hub) buildSingBoxCore(ctx context.Context, node *domain.Node, profile *domain.ConfigProfile) ([]*nodev1.CoreConfig, string, error) {
+	tags := node.ActiveInboundTags
+	if len(tags) == 0 {
+		for _, in := range profile.Inbounds {
+			tags = append(tags, in.Tag)
+		}
+	}
+
+	provisioned, err := h.store.UsersForNode(ctx, profile.UUID, tags)
+	if err != nil {
+		return nil, "", err
+	}
+	byTag := map[string][]singbox.User{}
+	for _, p := range provisioned {
+		byTag[p.InboundTag] = append(byTag[p.InboundTag], singbox.User{
+			Name: p.UUID + "." + p.Username,
+			UUID: p.VlessUUID,
+			// The trojan password doubles as the hysteria2, tuic and trojan
+			// secret, so revoking a user still cuts off every one of them.
+			Password: p.TrojanPassword,
+		})
+	}
+
+	payload, hash, err := singbox.Render(profile.Config, singbox.RenderOptions{
+		UsersByTag: byTag,
+		ActiveTags: tags,
+	})
+	if err != nil {
+		return nil, "", err
+	}
+	return []*nodev1.CoreConfig{{
+		Kind: string(domain.ProfileSingBox), Config: payload, Hash: hash,
+	}}, hash, nil
 }

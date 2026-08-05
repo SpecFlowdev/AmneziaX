@@ -23,9 +23,11 @@ import (
 // supervisor to fit a second engine is a change with no upside for the nodes
 // already out there.
 type Hysteria struct {
-	binary  string
-	workDir string
-	log     *slog.Logger
+	binary     string
+	workDir    string
+	configName string
+	args       []string
+	log        *slog.Logger
 
 	mu      sync.Mutex
 	current *proc
@@ -33,10 +35,20 @@ type Hysteria struct {
 }
 
 func NewHysteria(binary, workDir string, log *slog.Logger) *Hysteria {
-	return &Hysteria{binary: binary, workDir: workDir, log: log}
+	return &Hysteria{binary: binary, workDir: workDir, log: log,
+		configName: "hysteria.yaml", args: []string{"server", "-c"}}
 }
 
-func (h *Hysteria) configPath() string { return filepath.Join(h.workDir, "hysteria.yaml") }
+// NewSingBox supervises sing-box with the same machinery. The two differ only
+// in the binary, the file name and the arguments — everything about keeping a
+// process alive and swapping its config is identical, and duplicating it would
+// mean fixing the next bug twice.
+func NewSingBox(binary, workDir string, log *slog.Logger) *Hysteria {
+	return &Hysteria{binary: binary, workDir: workDir, log: log,
+		configName: "singbox.json", args: []string{"run", "-c"}}
+}
+
+func (h *Hysteria) configPath() string { return filepath.Join(h.workDir, h.configName) }
 
 // Available reports whether the binary is actually installed. A node that was
 // enrolled before hysteria2 existed has no such binary, and the honest answer
@@ -75,7 +87,7 @@ func (h *Hysteria) ConfigHash() string {
 // every live connection for nothing.
 func (h *Hysteria) Apply(ctx context.Context, config []byte, hash string) error {
 	if !h.Available() {
-		return errors.New("hysteria2 is not installed on this node; re-run the installer to add it")
+		return errors.New(h.name() + " is not installed on this node; re-run the installer to add it")
 	}
 	if hash == "" {
 		sum := sha256.Sum256(config)
@@ -114,7 +126,7 @@ func (h *Hysteria) Apply(ctx context.Context, config []byte, hash string) error 
 func (h *Hysteria) restart(ctx context.Context) error {
 	h.Stop()
 
-	cmd := exec.CommandContext(ctx, h.binary, "server", "-c", h.configPath())
+	cmd := exec.CommandContext(ctx, h.binary, append(append([]string{}, h.args...), h.configPath())...)
 	cmd.Dir = h.workDir
 	if err := cmd.Start(); err != nil {
 		return err
@@ -135,7 +147,7 @@ func (h *Hysteria) restart(ctx context.Context) error {
 	// start-up. Exiting inside a second means it refused the config.
 	select {
 	case <-p.exited:
-		return errors.New("hysteria2 exited immediately — the configuration was refused")
+		return errors.New(h.name() + " exited immediately — the configuration was refused")
 	case <-time.After(time.Second):
 		return nil
 	}
@@ -157,4 +169,12 @@ func (h *Hysteria) Stop() {
 		_ = p.cmd.Process.Kill()
 		<-p.exited
 	}
+}
+
+// name is what the engine is called in a message an operator reads.
+func (h *Hysteria) name() string {
+	if h.configName == "singbox.json" {
+		return "sing-box"
+	}
+	return "hysteria2"
 }

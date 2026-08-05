@@ -85,7 +85,8 @@ and an install needs one binary.
 | **Trojan** | |
 | **Shadowsocks** | |
 | **WireGuard** | a Curve25519 key pair and a fixed tunnel address per subscriber |
-| **Hysteria2** | a second engine, installed alongside xray-core |
+| **Hysteria2** | via sing-box or its own engine, installed alongside xray-core |
+| **TUIC** | via sing-box |
 
 Transports follow whatever the profile document specifies — TCP, WebSocket,
 gRPC, HTTPUpgrade, XHTTP — because a profile *is* an xray document rather than a
@@ -96,8 +97,7 @@ so a node serving it runs a second binary beside xray-core, installed by the
 node installer. Adding it to a node that already exists means re-running that
 installer.
 
-**Not served, and why.** TUIC is in the same position as Hysteria2 and simply
-has not been done yet. OpenVPN and Cloak are further still: OpenVPN
+**Not served, and why.** OpenVPN and Cloak. OpenVPN and Cloak are further still: OpenVPN
 brings a TUN device and its own certificate authority, and Cloak is an
 obfuscation layer in front of a proxy with its own key material and user list.
 Neither fits "a profile is one document", and neither is claimed here.

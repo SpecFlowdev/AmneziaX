@@ -57,11 +57,12 @@ type ProfileKind string
 const (
 	ProfileXray      ProfileKind = "xray"
 	ProfileHysteria2 ProfileKind = "hysteria2"
+	ProfileSingBox   ProfileKind = "singbox"
 )
 
 func (k ProfileKind) Valid() bool {
 	switch k {
-	case ProfileXray, ProfileHysteria2:
+	case ProfileXray, ProfileHysteria2, ProfileSingBox:
 		return true
 	}
 	return false

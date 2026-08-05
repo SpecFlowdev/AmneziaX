@@ -10,6 +10,28 @@ that follows the stable channel.
 
 ## [Unreleased]
 
+## [0.12.0] — 2026-08-05
+
+### Added
+
+- **TUIC, and a sing-box engine to serve it.** One binary covers TUIC,
+  Hysteria2, VLESS, VMess, Trojan and Shadowsocks, so a protocol added here
+  costs a renderer rather than another process on every node. It also ships an
+  offline validator — `sing-box check` — which means a bad document is refused
+  while the operator is still looking at it rather than on a node at restart.
+  Users are written into each inbound in the shape its type expects: TUIC wants
+  a uuid *and* a password, hysteria2 and trojan want a password, VLESS and VMess
+  want a uuid. A user missing what their type needs is skipped rather than
+  written as an entry that could never authenticate. Access is unchanged from
+  every other protocol — a squad grants an inbound, and only users reachable
+  through it are written into that inbound.
+  The agent supervises sing-box with the same machinery as hysteria2; the two
+  differ only in the binary, the file name and the arguments, and duplicating
+  the supervision would have meant fixing the next bug in it twice.
+  **Existing nodes need re-running the installer** to gain the binary. A node
+  that cannot fetch it keeps working as an xray node and says so.
+
+
 ## [0.11.0] — 2026-08-05
 
 ### Added

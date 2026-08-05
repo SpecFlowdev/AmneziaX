@@ -112,6 +112,16 @@ emitted as the subscribable events `USER_EXPIRING_SOON` and
 | `POST` | `/api/profiles/tools/reality-keys` | `{privateKey, publicKey, shortIds}`. |
 | `POST` | `/api/profiles/tools/wireguard-keys` | A fresh server pair, or — given `{privateKey}` — the public half of one you already have. A WireGuard host must name the server's *public* key, and deriving it beats keeping the two halves straight by hand. |
 
+A profile carries a `kind` naming the engine its document is written for:
+`xray` (the default, and what every profile written before this was), `singbox`
+or `hysteria2`. The document is validated by that engine's rules, rendered by
+its renderer, and run by it on the node. Everything else — squads granting
+inbounds, hosts publishing them, users being revoked — works identically
+whichever engine is behind it.
+
+A hysteria2 document has no inbounds of its own, so the panel synthesises one
+for it; that is what lets a squad grant it like anything else.
+
 The `config` field is a full Xray document. Validation requires at least one
 inbound and one outbound, a unique non-empty `tag` on every inbound, and rejects
 the reserved tag `amneziax-api`.

@@ -17,6 +17,7 @@ NODE_TOKEN=""
 INSECURE="true"
 SERVER_NAME=""
 PANEL_URL=""
+SINGBOX_VERSION="${SINGBOX_VERSION:-1.11.15}"
 XRAY_VERSION="${XRAY_VERSION:-v25.1.30}"
 AGENT_VERSION="${AGENT_VERSION:-latest}"
 RELEASE_BASE="${AMNEZIAX_RELEASE_BASE:-https://github.com/SpecFlowdev/AmneziaX/releases}"
@@ -184,6 +185,36 @@ else
       rm -f "$BIN_DIR/hysteria.new"
       warn "could not download hysteria2; this node will serve xray only"
     fi
+  fi
+fi
+
+# -------------------------------------------------------------------- sing-box
+
+# One binary that serves TUIC, Hysteria2, VLESS, VMess, Trojan and Shadowsocks,
+# so a node gains several protocols for one download. Optional in the same way
+# hysteria2 is: a node that cannot fetch it stays a working xray node.
+if [[ -x "$BIN_DIR/sing-box" ]]; then
+  info "sing-box already installed"
+else
+  case "$(uname -m)" in
+    x86_64|amd64) sb_arch="amd64" ;;
+    aarch64|arm64) sb_arch="arm64" ;;
+    *) sb_arch="" ;;
+  esac
+  if [[ -z "$sb_arch" ]]; then
+    warn "no sing-box build for $(uname -m); this node will not serve TUIC"
+  else
+    info "installing sing-box"
+    sb_tmp="$(mktemp -d)"
+    if curl -fsSL -o "$sb_tmp/sb.tgz" \
+      "https://github.com/SagerNet/sing-box/releases/download/v${SINGBOX_VERSION}/sing-box-${SINGBOX_VERSION}-linux-${sb_arch}.tar.gz" \
+      && tar xzf "$sb_tmp/sb.tgz" -C "$sb_tmp" --strip-components=1 2>/dev/null \
+      && [[ -f "$sb_tmp/sing-box" ]]; then
+      install -m 0755 "$sb_tmp/sing-box" "$BIN_DIR/sing-box"
+    else
+      warn "could not install sing-box; this node will not serve TUIC"
+    fi
+    rm -rf "$sb_tmp"
   fi
 fi
 

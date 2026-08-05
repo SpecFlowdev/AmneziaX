@@ -23,6 +23,7 @@ type Agent struct {
 	cfg      *config.Agent
 	xray     *Xray
 	hysteria *Hysteria
+	singbox  *Hysteria
 	log      *slog.Logger
 
 	mu                sync.Mutex
@@ -36,6 +37,7 @@ func New(cfg *config.Agent, log *slog.Logger) *Agent {
 		cfg:               cfg,
 		xray:              NewXray(cfg.XrayBinary, cfg.XrayWorkDir, cfg.XrayAPIAddr, log),
 		hysteria:          NewHysteria(cfg.HysteriaBinary, cfg.XrayWorkDir, log),
+		singbox:           NewSingBox(cfg.SingBoxBinary, cfg.XrayWorkDir, log),
 		log:               log,
 		heartbeatInterval: 10 * time.Second,
 		usageInterval:     30 * time.Second,
@@ -400,7 +402,7 @@ func (a *Agent) send(outbox chan<- *nodev1.AgentMessage, msg *nodev1.AgentMessag
 // not still agree on the important half.
 func (a *Agent) applyExtraCores(ctx context.Context, cmd *nodev1.ApplyConfig) error {
 	var firstErr error
-	sawHysteria := false
+	sawHysteria, sawSingBox := false, false
 
 	for _, core := range cmd.GetCores() {
 		switch core.GetKind() {
@@ -412,6 +414,14 @@ func (a *Agent) applyExtraCores(ctx context.Context, cmd *nodev1.ApplyConfig) er
 			sawHysteria = true
 			if err := a.hysteria.Apply(ctx, core.GetConfig(), core.GetHash()); err != nil {
 				a.log.Error("failed to apply the hysteria2 configuration", "error", err)
+				if firstErr == nil {
+					firstErr = err
+				}
+			}
+		case "singbox":
+			sawSingBox = true
+			if err := a.singbox.Apply(ctx, core.GetConfig(), core.GetHash()); err != nil {
+				a.log.Error("failed to apply the sing-box configuration", "error", err)
 				if firstErr == nil {
 					firstErr = err
 				}
@@ -428,6 +438,10 @@ func (a *Agent) applyExtraCores(ctx context.Context, cmd *nodev1.ApplyConfig) er
 	if !sawHysteria && a.hysteria.Running() {
 		a.log.Info("no hysteria2 configuration in this push, stopping it")
 		a.hysteria.Stop()
+	}
+	if !sawSingBox && a.singbox.Running() {
+		a.log.Info("no sing-box configuration in this push, stopping it")
+		a.singbox.Stop()
 	}
 	return firstErr
 }
