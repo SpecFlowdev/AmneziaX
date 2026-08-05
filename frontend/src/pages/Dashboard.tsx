@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { Attention } from '../components/Attention'
 import { ChartLegend, StackedAreaChart, type Series } from '../components/Chart'
 import { Icon } from '../components/icons'
 import { Badge, EmptyState, Spinner, Tabs } from '../components/ui'
@@ -70,6 +71,8 @@ export function Dashboard() {
           <p>{t.dashboard.subtitle}</p>
         </div>
       </div>
+
+      <Attention />
 
       <div className="grid cols-4">
         <Stat

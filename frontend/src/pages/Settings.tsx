@@ -315,6 +315,30 @@ function BrandingCard() {
           </Field>
         )}
 
+        <Field label={t.attention.title} hint={t.settings.warnHint}>
+          <div className="grid cols-2" style={{ gap: 10 }}>
+            <label className="small dim">
+              {t.settings.warnExpiryDays}
+              <input
+                type="number"
+                min={0}
+                value={draft.warnExpiryDays ?? 3}
+                onChange={(e) => set('warnExpiryDays', Number(e.target.value))}
+              />
+            </label>
+            <label className="small dim">
+              {t.settings.warnQuotaPercent}
+              <input
+                type="number"
+                min={0}
+                max={100}
+                value={draft.warnQuotaPercent ?? 90}
+                onChange={(e) => set('warnQuotaPercent', Number(e.target.value))}
+              />
+            </label>
+          </div>
+        </Field>
+
         <Field label={t.settings.subPage} hint={t.settings.subPageHint}>
           <div className="stack" style={{ gap: 8 }}>
             <label className="checkbox">

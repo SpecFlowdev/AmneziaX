@@ -84,7 +84,14 @@ everything except that. `VIEWER` is read-only — any mutating request returns
 | `GET` | `/api/health` | Public liveness probe. |
 | `GET` | `/api/branding` | **Public.** Name, tagline, logo and accent, for the sign-in and subscription pages. |
 | `GET` | `/api/settings` | Full panel settings. |
-| `PUT` | `/api/settings` | Update branding, subscription title, support link and currency. |
+| `PUT` | `/api/settings` | Update branding, subscription title, support link, currency, and the warning thresholds below. |
+
+`warnExpiryDays` and `warnQuotaPercent` control how early subscribers are warned.
+Either set to `0` disables that warning, which is exactly how every install
+behaved before they existed. Defaults are 3 days and 90%. The warnings are
+emitted as the subscribable events `USER_EXPIRING_SOON` and
+`USER_QUOTA_WARNING`, each sent once rather than once a minute.
+| `GET` | `/api/system/attention` | What needs the operator right now: nodes offline, degraded or over quota; subscribers cut off, expiring or near their quota; node payments due within a week. Counts plus up to five names each. A pure read — looking at the dashboard never consumes a warning that has not been sent. |
 | `GET` | `/api/system/spend` | Infrastructure cost: monthly and yearly totals, cost per TB, per-provider breakdown and upcoming payments. |
 | `GET` | `/api/system/overview` | Counters plus panel build info. |
 | `GET` | `/api/system/stats/traffic?days=7` | Total and per-node time series. |

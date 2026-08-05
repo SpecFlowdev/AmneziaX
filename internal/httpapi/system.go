@@ -82,3 +82,19 @@ func (a *API) events(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, items)
 }
+
+// attention answers "what needs me right now" in one request, so the operator
+// does not have to open four pages to find out that nothing does.
+func (a *API) attention(w http.ResponseWriter, r *http.Request) {
+	settings, err := a.settings(r)
+	if err != nil {
+		a.storeErr(w, err)
+		return
+	}
+	out, err := a.store.Attention(r.Context(), settings.WarnExpiryDays, settings.WarnQuotaPercent)
+	if err != nil {
+		a.storeErr(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, out)
+}

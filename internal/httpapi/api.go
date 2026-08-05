@@ -139,6 +139,7 @@ func (a *API) Router(ui http.Handler) http.Handler {
 			r.Get("/system/stats/top-users", a.topUsers)
 			r.Get("/system/events", a.events)
 			r.Get("/system/spend", a.spend)
+			r.Get("/system/attention", a.attention)
 
 			// One endpoint across several tables: the command palette queries on
 			// every keystroke, and four round trips per keystroke is how a

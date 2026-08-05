@@ -235,6 +235,8 @@ export interface Settings {
   currency: string
   subscriptionFormat: string
   requireTotp: boolean
+  warnExpiryDays: number
+  warnQuotaPercent: number
   subPageShowLinks: boolean
   subPageShowFormats: boolean
   clashTemplate: string

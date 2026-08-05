@@ -9,14 +9,16 @@ import (
 const settingsColumns = `brand_name, brand_tagline, brand_logo, brand_accent,
 	subscription_title, support_url, currency, subscription_format,
 	sub_page_show_links, sub_page_show_formats,
-	clash_template, singbox_template, require_totp, updated_at`
+	clash_template, singbox_template, require_totp,
+	warn_expiry_days, warn_quota_percent, updated_at`
 
 func scanSettings(row interface{ Scan(...any) error }) (*domain.Settings, error) {
 	var s domain.Settings
 	err := row.Scan(&s.BrandName, &s.BrandTagline, &s.BrandLogo, &s.BrandAccent,
 		&s.SubscriptionTitle, &s.SupportURL, &s.Currency, &s.SubscriptionFormat,
 		&s.SubPageShowLinks, &s.SubPageShowFormats,
-		&s.ClashTemplate, &s.SingBoxTemplate, &s.RequireTOTP, &s.UpdatedAt)
+		&s.ClashTemplate, &s.SingBoxTemplate, &s.RequireTOTP,
+		&s.WarnExpiryDays, &s.WarnQuotaPercent, &s.UpdatedAt)
 	if err != nil {
 		return nil, mapErr(err)
 	}
@@ -38,11 +40,13 @@ func (s *Store) UpdateSettings(ctx context.Context, in domain.Settings) (*domain
 		subscription_title = $5, support_url = $6, currency = $7,
 		subscription_format = $8, sub_page_show_links = $9,
 		sub_page_show_formats = $10, clash_template = $11,
-		singbox_template = $12, require_totp = $13, updated_at = NOW()
+		singbox_template = $12, require_totp = $13,
+		warn_expiry_days = $14, warn_quota_percent = $15, updated_at = NOW()
 		WHERE id = TRUE RETURNING `+settingsColumns,
 		in.BrandName, in.BrandTagline, in.BrandLogo, in.BrandAccent,
 		in.SubscriptionTitle, in.SupportURL, in.Currency, in.SubscriptionFormat,
 		in.SubPageShowLinks, in.SubPageShowFormats,
-		in.ClashTemplate, in.SingBoxTemplate, in.RequireTOTP)
+		in.ClashTemplate, in.SingBoxTemplate, in.RequireTOTP,
+		in.WarnExpiryDays, in.WarnQuotaPercent)
 	return scanSettings(row)
 }

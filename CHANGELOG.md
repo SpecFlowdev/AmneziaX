@@ -10,6 +10,33 @@ that follows the stable channel.
 
 ## [Unreleased]
 
+## [0.9.0] — 2026-08-05
+
+### Added
+
+- **Warnings before a cutoff.** An expiry date and a traffic quota both take a
+  subscriber's service away on a schedule, and both were only ever visible after
+  it happened. `USER_EXPIRING_SOON` and `USER_QUOTA_WARNING` are emitted ahead
+  of each and are subscribable like any other event, so a webhook or a Telegram
+  channel can act while the subscriber still has service.
+  Sending each one *once* is the whole difficulty: the maintenance loop runs
+  every minute, so a select-then-notify would deliver the same warning sixty
+  times an hour. Each claim marks the row in the same statement that reads it,
+  and marks it with the value it warned about rather than a boolean — the
+  expiry it was sent for, the usage it was sent at. That is what makes a
+  renewal a new deadline worth a fresh warning, and a monthly reset re-arm the
+  quota warning for the next cycle instead of silencing it forever.
+  Thresholds live in Settings; zero disables either, which is exactly how every
+  install behaved before this existed.
+- **Needs-attention panel** on the dashboard: nodes offline, degraded or over
+  their traffic limit; subscribers cut off, expiring or near their quota; node
+  payments due within the week — with names, not just counts, because a number
+  the operator still has to go looking for is barely better than no number. It
+  reads rather than claims, so opening the dashboard never consumes a warning
+  that has not been delivered. When nothing is wrong it collapses to one line,
+  since a panel that always shows warnings teaches people to stop reading them.
+
+
 ## [0.8.0] — 2026-08-05
 
 ### Added

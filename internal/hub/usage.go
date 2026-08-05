@@ -134,6 +134,8 @@ func (h *Hub) RunMaintenance(ctx context.Context) {
 			h.log.Error("maintenance: prune usage", "error", err)
 		}
 
+		h.warnBeforeCutoff(ctx)
+
 		// Heartbeat samples and delivery receipts both accumulate a row per
 		// minute per node and per notification, and neither is interesting once
 		// the window the UI draws has moved past it.
@@ -166,5 +168,49 @@ func (h *Hub) RunMaintenance(ctx context.Context) {
 					"cycle":    n.BillingCycle,
 				})
 		}
+	}
+}
+
+// warnBeforeCutoff tells the operator about subscribers who are about to lose
+// service, while there is still time to do something about it. Both claims mark
+// the user as they read, so each warning is emitted once rather than once a
+// minute until the deadline arrives.
+func (h *Hub) warnBeforeCutoff(ctx context.Context) {
+	settings, err := h.store.Settings(ctx)
+	if err != nil {
+		h.log.Warn("maintenance: read settings for warnings", "error", err)
+		return
+	}
+
+	expiring, err := h.store.ClaimExpiryWarnings(ctx,
+		time.Duration(settings.WarnExpiryDays)*24*time.Hour)
+	if err != nil {
+		h.log.Error("maintenance: expiry warnings", "error", err)
+	}
+	for i := range expiring {
+		w := &expiring[i]
+		h.store.LogEvent(ctx, domain.EventUserExpiringSoon, "system", w.Username,
+			"subscription expires soon",
+			map[string]any{"daysLeft": w.DaysLeft})
+	}
+
+	nearQuota, err := h.store.ClaimQuotaWarnings(ctx, settings.WarnQuotaPercent)
+	if err != nil {
+		h.log.Error("maintenance: quota warnings", "error", err)
+	}
+	for i := range nearQuota {
+		w := &nearQuota[i]
+		h.store.LogEvent(ctx, domain.EventUserQuotaWarning, "system", w.Username,
+			"traffic quota nearly used up",
+			map[string]any{
+				"percent":    w.Percent,
+				"usedBytes":  w.UsedBytes,
+				"limitBytes": w.LimitBytes,
+			})
+	}
+
+	if n := len(expiring) + len(nearQuota); n > 0 {
+		h.log.Info("subscribers warned before cutoff",
+			"expiring", len(expiring), "nearQuota", len(nearQuota))
 	}
 }

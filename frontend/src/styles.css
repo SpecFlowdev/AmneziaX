@@ -873,3 +873,9 @@ tbody tr:last-child td {
 .palette-item .small { margin-left: auto; }
 .palette-item.active { background: var(--surface-2); }
 .palette-empty { padding: 18px; text-align: center; }
+
+/* A pill that is a link to somewhere that needs doing, not a neutral tag. */
+.pill-warn {
+  border-color: color-mix(in srgb, var(--warn) 45%, var(--border));
+  color: var(--warn);
+}

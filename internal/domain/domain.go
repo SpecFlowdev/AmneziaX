@@ -100,8 +100,12 @@ type Settings struct {
 	SingBoxTemplate string `json:"singboxTemplate"`
 	// RequireTOTP refuses a session to any administrator without a second
 	// factor, sending them to enrolment instead.
-	RequireTOTP bool      `json:"requireTotp"`
-	UpdatedAt   time.Time `json:"updatedAt"`
+	RequireTOTP bool `json:"requireTotp"`
+	// How early to warn. Zero disables either warning, which is what every
+	// install did before these existed.
+	WarnExpiryDays   int       `json:"warnExpiryDays"`
+	WarnQuotaPercent int       `json:"warnQuotaPercent"`
+	UpdatedAt        time.Time `json:"updatedAt"`
 }
 
 // BillingCycle is how often a node has to be paid for.
@@ -408,6 +412,10 @@ const (
 	EventUserDeleted      EventKind = "USER_DELETED"
 	EventUserLimited      EventKind = "USER_LIMITED"
 	EventUserExpired      EventKind = "USER_EXPIRED"
+	// Sent before the fact rather than after, so an operator or a billing
+	// system can act while the subscriber still has service.
+	EventUserExpiringSoon EventKind = "USER_EXPIRING_SOON"
+	EventUserQuotaWarning EventKind = "USER_QUOTA_WARNING"
 	EventAdminLogin       EventKind = "ADMIN_LOGIN"
 	EventAdminLoginFailed EventKind = "ADMIN_LOGIN_FAILED"
 	// A second factor being turned on or off, and a sign-in locked for
@@ -426,6 +434,7 @@ const (
 var AllEventKinds = []EventKind{
 	EventNodeConnected, EventNodeDisconnected, EventNodeConfigPushed, EventNodeError,
 	EventUserCreated, EventUserUpdated, EventUserDeleted, EventUserLimited, EventUserExpired,
+	EventUserExpiringSoon, EventUserQuotaWarning,
 	EventAdminLogin, EventAdminLoginFailed, EventAdminSecurity, EventAdminLocked,
 	EventProfileUpdated, EventNodePaymentDue,
 	EventDeviceBlocked, EventSettingsUpdated,

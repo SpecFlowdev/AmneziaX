@@ -242,6 +242,27 @@ password walks through. In-memory is the deliberate trade: no write per failed
 guess, and the only way to clear it is a panel restart, which an attacker on
 the outside cannot cause.
 
+## Warning before a cutoff
+
+Two things take a subscriber's service away on a schedule: an expiry date and a
+traffic quota. Both were only visible after the fact. The maintenance loop now
+claims and emits a warning ahead of each.
+
+"Claim" is the whole design. The loop runs every minute, so a select-then-notify
+would send the same warning sixty times an hour. Each claim marks the row in the
+same statement that reads it, and marks it with the value it warned about rather
+than a boolean:
+
+- an expiry warning stores the `expire_at` it was sent for, so extending a
+  subscription is a new deadline and earns a fresh warning;
+- a quota warning stores the usage it was sent at, so a monthly reset moves
+  usage below the mark and the next crossing warns again — once per cycle
+  rather than once ever.
+
+The dashboard's attention panel asks the same questions as a read, never a
+claim. Looking at the dashboard must not consume a warning that has not been
+delivered.
+
 ## Failure handling
 
 - **Bad configuration.** The agent writes the new document, runs
