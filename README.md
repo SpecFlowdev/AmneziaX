@@ -58,6 +58,10 @@ install already contains a working VLESS + REALITY profile.
 | **Subscription page options** | Choose what the subscriber sees on their own page — the format buttons and the raw connection links can each be hidden, and hidden links are never sent, not merely styled away. |
 | **Two-factor authentication** | TOTP from any authenticator app, with single-use recovery codes for when the phone is gone. An owner can require it panel-wide. An accepted code is burned, so one read over your shoulder is not reusable. |
 | **Sign-in throttling** | Failures are counted per username *and* per address; either crossing the threshold locks further attempts with a doubling backoff. A lockout is refused before the password is checked, so knowing it does not get you past. |
+| **One-tap import** | The subscriber's page offers their apps directly — Happ, v2rayNG, Streisand, Hiddify, Shadowrocket, sing-box, Clash, V2Box — each as the app's own URL scheme carrying the subscription. The list leads with what runs on the device they opened it from, and the copy link stays put as the route that always works. |
+| **Command palette** | `Ctrl`/`⌘` + `K` from anywhere: every page in a few letters, and the same box finds a user, node, host or squad by name. One query across all four rather than four round trips per keystroke. |
+| **Bulk user creation** | Make a class, an office or a reseller's customers in one go, from a prefix and a count or from a pasted list. Names are zero-padded so they sort the way they read, the batch is previewed before anything is created, and a duplicate costs that name rather than the whole run. Names and links come back as a file. |
+| **CSV export** | The user list, filters applied, in the format every billing system and spreadsheet already reads. |
 | **Roles** | Owner, administrator and read-only accounts. |
 | **Bilingual UI** | Russian and English, dark and light themes. A neutral grey shell with crimson kept for the things that are actually interactive. |
 | **White-label branding** | Set the panel's name, logo and accent colour from Settings; they apply to the sidebar, the sign-in screen and the subscription page. |
@@ -204,6 +208,10 @@ algorithm.
 | Two-factor setup | Signing in |
 |---|---|
 | <img src="docs/assets/security.png" alt="Enrolling an authenticator app" width="100%"> | <img src="docs/assets/signin.png" alt="The code step on the sign-in screen" width="100%"> |
+
+| Command palette | The subscriber's page |
+|---|---|
+| <img src="docs/assets/palette.png" alt="Ctrl+K finding a user" width="100%"> | <img src="docs/assets/import.png" alt="One-tap import into client apps" width="100%"> |
 
 Live telemetry per node, one-line install commands, rendered configuration and
 log access on the nodes page; quotas, squads, devices and subscription links on

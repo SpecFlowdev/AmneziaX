@@ -90,6 +90,7 @@ everything except that. `VIEWER` is read-only — any mutating request returns
 | `GET` | `/api/system/stats/traffic?days=7` | Total and per-node time series. |
 | `GET` | `/api/system/stats/top-users?days=7&limit=10` | Biggest consumers. |
 | `GET` | `/api/system/events?limit=100&kind=NODE_ERROR` | Audit log. |
+| `GET` | `/api/search?q=…` | One query across users, nodes, hosts and squads. Returns `[{kind, uuid, label, hint}]`, at most five of each kind so a thousand matching users cannot push the one matching node off the list. An empty `q` returns `[]` rather than everything. |
 
 ## Config profiles
 
@@ -209,6 +210,38 @@ A past-due `nextPaymentAt` rolls forward one cycle and leaves a
 | `DELETE` | `/api/users/{uuid}/devices` | Forget every device. |
 | `DELETE` | `/api/users/{uuid}/devices/{hwid}` | Forget one device. |
 | `POST` | `/api/users/bulk` | `{uuids, action}` where action is `enable`, `disable`, `reset-traffic` or `delete`. |
+| `POST` | `/api/users/bulk-create` | Create many at once — see below. |
+| `GET` | `/api/users/export.csv?search=&status=&tag=` | The list as CSV, including each subscription link. Write-grade despite only reading, because those links are credentials. |
+
+### Creating many users at once
+
+Give either a `prefix` with a `count` (and an optional `start`), or an explicit
+list of `names`. The list wins when both are present. Everything else in the
+payload — status, traffic limit, reset cycle, squads, tag, device limit — is
+applied to every user created.
+
+```json
+{ "prefix": "class-", "count": 12, "start": 1, "squadUuids": ["…"] }
+```
+
+Generated names are zero-padded to the width of the highest number, so
+`class-01` sorts before `class-10` in every list an operator will read. At most
+500 users per request — a guard against a typo in `count`, not a policy about
+deployment size.
+
+Names are created one at a time rather than in one transaction, so a single
+duplicate costs that name and not the batch. The answer reports both halves:
+
+```json
+{
+  "created": [ { "username": "class-01", "subscriptionUrl": "…" } ],
+  "failed":  [ { "username": "class-02", "error": "a user with this name already exists" } ]
+}
+```
+
+A pasted list is trimmed, blanks are dropped, and repeats are folded
+case-insensitively before anything is created. The whole batch triggers one node
+sync, not one per user.
 
 List parameters: `search`, `status`, `squadUuid`, `tag`, `limit` (≤ 500),
 `offset`, `sortBy` (`username`, `createdAt`, `expireAt`, `usedTraffic`, `status`,

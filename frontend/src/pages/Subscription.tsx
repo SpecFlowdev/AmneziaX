@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import QRCode from 'qrcode'
 import { Icon } from '../components/icons'
 import { Brand } from '../components/Brand'
+import { ImportButtons } from '../components/ImportButtons'
 import { CopyButton, Meter, Spinner } from '../components/ui'
 import { useI18n, type Lang } from '../i18n'
 import type { SubscriptionInfo } from '../lib/api'
@@ -173,6 +174,8 @@ export function Subscription() {
                 <CopyButton value={info.subscriptionUrl} />
               </div>
               <CopyButton value={info.subscriptionUrl} label={t.sub.copyLink} />
+
+              <ImportButtons subscriptionUrl={info.subscriptionUrl} />
 
               {/* The link above already gives every client the right format.
                   These pin one explicitly, for an app that asks for a

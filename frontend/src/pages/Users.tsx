@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import QRCode from 'qrcode'
+import { BulkCreate } from '../components/BulkCreate'
 import { Sparkbars } from '../components/Chart'
 import { Icon } from '../components/icons'
 import {
@@ -16,7 +17,7 @@ import {
   useAction,
 } from '../components/ui'
 import { useI18n } from '../i18n'
-import { api, type Device, type ResetStrategy, type Squad, type User, type UserStatus } from '../lib/api'
+import { api, getToken, type Device, type ResetStrategy, type Squad, type User, type UserStatus } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import {
   bytes,
@@ -62,6 +63,7 @@ export function Users() {
   const [selection, setSelection] = useState<string[]>([])
 
   const [editing, setEditing] = useState<User | 'new' | null>(null)
+  const [bulkOpen, setBulkOpen] = useState(false)
   const [detail, setDetail] = useState<User | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<User | null>(null)
 
@@ -106,6 +108,21 @@ export function Users() {
     if (ok) return
   }
 
+  // A plain link cannot carry the bearer token, so the file is fetched and
+  // handed to the browser as a blob.
+  async function downloadCSV() {
+    const res = await fetch('/api/users/export.csv', {
+      headers: { Authorization: `Bearer ${getToken() ?? ''}` },
+    })
+    if (!res.ok) return
+    const url = URL.createObjectURL(await res.blob())
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `amneziax-users-${new Date().toISOString().slice(0, 10)}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <div className="page">
       <div className="page-head">
@@ -114,10 +131,20 @@ export function Users() {
           <p>{t.users.subtitle}</p>
         </div>
         {canWrite && (
-          <button className="btn-primary" onClick={() => setEditing('new')}>
-            <Icon name="plus" size={16} />
-            {t.users.add}
-          </button>
+          <>
+            <button className="btn" onClick={() => downloadCSV()}>
+              <Icon name="download" size={15} />
+              CSV
+            </button>
+            <button className="btn" onClick={() => setBulkOpen(true)}>
+              <Icon name="users" size={15} />
+              {t.bulk.title}
+            </button>
+            <button className="btn-primary" onClick={() => setEditing('new')}>
+              <Icon name="plus" size={16} />
+              {t.users.add}
+            </button>
+          </>
         )}
       </div>
 
@@ -338,6 +365,14 @@ export function Users() {
           </div>
         )}
       </div>
+
+      {bulkOpen && (
+        <BulkCreate
+          squads={squads.data ?? []}
+          onClose={() => setBulkOpen(false)}
+          onDone={() => void users.reload()}
+        />
+      )}
 
       {editing && (
         <UserEditor

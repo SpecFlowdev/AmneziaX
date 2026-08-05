@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { CommandPalette } from './CommandPalette'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useI18n, type Lang } from '../i18n'
 import { useAuth } from '../lib/auth'
@@ -61,6 +62,9 @@ export function Shell() {
 
   return (
     <div className="shell">
+      {/* Global: the palette owns its own key handler, so it has to be mounted
+          wherever the operator already is rather than on one page. */}
+      <CommandPalette />
       <aside className={`sidebar${menuOpen ? ' open' : ''}`}>
         <div className="brand">
           <Brand />

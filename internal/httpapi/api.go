@@ -140,6 +140,11 @@ func (a *API) Router(ui http.Handler) http.Handler {
 			r.Get("/system/events", a.events)
 			r.Get("/system/spend", a.spend)
 
+			// One endpoint across several tables: the command palette queries on
+			// every keystroke, and four round trips per keystroke is how a
+			// search box comes to feel slow.
+			r.Get("/search", a.search)
+
 			r.Get("/settings", a.getSettings)
 			r.Put("/settings", a.writable(a.updateSettings))
 
@@ -212,6 +217,10 @@ func (a *API) Router(ui http.Handler) http.Handler {
 				r.Get("/tags", a.listUserTags)
 				r.Post("/", a.writable(a.createUser))
 				r.Post("/bulk", a.writable(a.bulkUsers))
+				r.Post("/bulk-create", a.writable(a.bulkCreateUsers))
+				// The export carries every subscription link in it, so it is
+				// a write-grade action even though it only reads.
+				r.Get("/export.csv", a.writable(a.exportUsersCSV))
 				r.Get("/{id}", a.getUser)
 				r.Put("/{id}", a.writable(a.updateUser))
 				r.Delete("/{id}", a.writable(a.deleteUser))

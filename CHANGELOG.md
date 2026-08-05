@@ -10,6 +10,44 @@ that follows the stable channel.
 
 ## [Unreleased]
 
+## [0.8.0] — 2026-08-05
+
+### Added
+
+- **One-tap import into client apps.** A subscriber was handed a link and left
+  to work out what to do with it — paste it where, in which app, on a phone.
+  The page now offers the apps themselves: Happ, v2rayNG, Streisand, Hiddify,
+  Shadowrocket, sing-box, Clash and V2Box, each as that app's own URL scheme
+  with the subscription inside it. The list leads with what runs on the device
+  the page was opened from, since a Shadowrocket button on Android is noise, and
+  the rest stay one click away because user agents are a hint and not a fact.
+  Nothing here can detect whether an app is installed — the browser just hands
+  the URL over and nothing visible happens if nobody claims it — so the copy
+  link and the QR stay exactly where they were, and the hint says plainly what
+  to do when a button appears to do nothing.
+- **Command palette.** `Ctrl`/`⌘` + `K` from anywhere in the panel. Every page
+  is a few letters away, and the same box finds a user, node, host or squad by
+  name. It is one endpoint across all four tables rather than four requests,
+  because the palette queries on every keystroke and four round trips per
+  keystroke is how a search box comes to feel slow. Answers that arrive after a
+  newer keystroke are discarded, so the list never flips back to what was typed
+  two letters ago.
+- **Bulk user creation.** Handing access to a class, an office or a reseller's
+  customers meant filling the same form thirty times. Now it takes either a
+  prefix and a count or a pasted list — the two ways the names already exist.
+  Generated numbers are zero-padded to the width of the largest, so `class-01`
+  sorts before `class-10` everywhere an operator will read them, and the exact
+  names are previewed before anything is created. Names are created one at a
+  time rather than in one transaction, so a single duplicate costs that name and
+  not the batch; the answer reports what was made and what was not, with the
+  reason. A pasted list is trimmed and de-duplicated first. The whole batch
+  triggers one node sync rather than one per user, and the new names and their
+  links come back as a file.
+- **CSV export of users**, with the current filters applied, including each
+  subscription link. That link is a credential, which is why the export is not
+  something a read-only account can pull.
+
+
 ## [0.7.0] — 2026-08-04
 
 ### Added
