@@ -20,9 +20,10 @@ import (
 )
 
 type Agent struct {
-	cfg  *config.Agent
-	xray *Xray
-	log  *slog.Logger
+	cfg      *config.Agent
+	xray     *Xray
+	hysteria *Hysteria
+	log      *slog.Logger
 
 	mu                sync.Mutex
 	heartbeatInterval time.Duration
@@ -34,6 +35,7 @@ func New(cfg *config.Agent, log *slog.Logger) *Agent {
 	return &Agent{
 		cfg:               cfg,
 		xray:              NewXray(cfg.XrayBinary, cfg.XrayWorkDir, cfg.XrayAPIAddr, log),
+		hysteria:          NewHysteria(cfg.HysteriaBinary, cfg.XrayWorkDir, log),
 		log:               log,
 		heartbeatInterval: 10 * time.Second,
 		usageInterval:     30 * time.Second,
@@ -249,6 +251,13 @@ func (a *Agent) applyConfig(ctx context.Context, cmd *nodev1.ApplyConfig, outbox
 	a.log.Info("applying configuration from the panel", "hash", hash, "bytes", len(cmd.GetXrayConfig()))
 	err := a.xray.Apply(ctx, cmd.GetXrayConfig(), hash)
 
+	// Any further cores the panel asked for. A failure here is reported but
+	// does not undo xray: a node serving four working protocols and one broken
+	// one is better than a node serving none.
+	if cerr := a.applyExtraCores(ctx, cmd); cerr != nil && err == nil {
+		err = cerr
+	}
+
 	result := &nodev1.ApplyResult{
 		RequestId:   cmd.GetRequestId(),
 		Ok:          err == nil,
@@ -377,4 +386,41 @@ func (a *Agent) send(outbox chan<- *nodev1.AgentMessage, msg *nodev1.AgentMessag
 	default:
 		a.log.Warn("dropped a message because the outbox is full")
 	}
+}
+
+// applyExtraCores runs the cores beyond xray. The xray document keeps arriving
+// in its own field, so a panel that knows about cores and an agent that does
+// not still agree on the important half.
+func (a *Agent) applyExtraCores(ctx context.Context, cmd *nodev1.ApplyConfig) error {
+	var firstErr error
+	sawHysteria := false
+
+	for _, core := range cmd.GetCores() {
+		switch core.GetKind() {
+		case "xray", "":
+			// Already applied from its own field; applying it twice would
+			// restart the process for no reason.
+			continue
+		case "hysteria2":
+			sawHysteria = true
+			if err := a.hysteria.Apply(ctx, core.GetConfig(), core.GetHash()); err != nil {
+				a.log.Error("failed to apply the hysteria2 configuration", "error", err)
+				if firstErr == nil {
+					firstErr = err
+				}
+			}
+		default:
+			// Guessing which binary an unknown kind belongs to would be worse
+			// than refusing it.
+			a.log.Warn("panel asked for a core this agent does not know", "kind", core.GetKind())
+		}
+	}
+
+	// A node that used to serve hysteria2 and no longer should must actually
+	// stop serving it, otherwise removing it from the panel leaves it running.
+	if !sawHysteria && a.hysteria.Running() {
+		a.log.Info("no hysteria2 configuration in this push, stopping it")
+		a.hysteria.Stop()
+	}
+	return firstErr
 }

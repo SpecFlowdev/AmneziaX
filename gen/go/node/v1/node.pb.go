@@ -76,7 +76,7 @@ func (x Command_Kind) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use Command_Kind.Descriptor instead.
 func (Command_Kind) EnumDescriptor() ([]byte, []int) {
-	return file_node_v1_node_proto_rawDescGZIP(), []int{12, 0}
+	return file_node_v1_node_proto_rawDescGZIP(), []int{13, 0}
 }
 
 type AgentMessage struct {
@@ -1015,10 +1015,18 @@ type ApplyConfig struct {
 	state     protoimpl.MessageState `protogen:"open.v1"`
 	RequestId string                 `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
 	// Full xray-core configuration document, JSON encoded.
+	//
+	// Kept as its own field rather than folded into `cores` so an agent built
+	// before multi-core support keeps working unchanged: it reads this and
+	// ignores what it does not know. A panel talking to such an agent still gets
+	// a working xray node.
 	XrayConfig []byte `protobuf:"bytes,2,opt,name=xray_config,json=xrayConfig,proto3" json:"xray_config,omitempty"`
 	ConfigHash string `protobuf:"bytes,3,opt,name=config_hash,json=configHash,proto3" json:"config_hash,omitempty"`
-	// Restart xray even when the hash did not change.
-	ForceRestart  bool `protobuf:"varint,4,opt,name=force_restart,json=forceRestart,proto3" json:"force_restart,omitempty"`
+	// Restart the cores even when the hash did not change.
+	ForceRestart bool `protobuf:"varint,4,opt,name=force_restart,json=forceRestart,proto3" json:"force_restart,omitempty"`
+	// Every core this node should run. An agent that understands this field uses
+	// it and ignores xray_config, which the panel also fills for the older ones.
+	Cores         []*CoreConfig `protobuf:"bytes,5,rep,name=cores,proto3" json:"cores,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1081,6 +1089,79 @@ func (x *ApplyConfig) GetForceRestart() bool {
 	return false
 }
 
+func (x *ApplyConfig) GetCores() []*CoreConfig {
+	if x != nil {
+		return x.Cores
+	}
+	return nil
+}
+
+// CoreConfig is one proxy engine the node supervises.
+type CoreConfig struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// "xray" or "hysteria2". A kind the agent does not recognise is skipped with
+	// a reported error rather than guessed at — running the wrong binary on a
+	// document is worse than not running it.
+	Kind string `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
+	// The rendered document, exactly as it should be written to disk.
+	Config []byte `protobuf:"bytes,2,opt,name=config,proto3" json:"config,omitempty"`
+	// Hash of `config`, so the agent can skip a restart that changes nothing.
+	Hash          string `protobuf:"bytes,3,opt,name=hash,proto3" json:"hash,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CoreConfig) Reset() {
+	*x = CoreConfig{}
+	mi := &file_node_v1_node_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CoreConfig) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CoreConfig) ProtoMessage() {}
+
+func (x *CoreConfig) ProtoReflect() protoreflect.Message {
+	mi := &file_node_v1_node_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CoreConfig.ProtoReflect.Descriptor instead.
+func (*CoreConfig) Descriptor() ([]byte, []int) {
+	return file_node_v1_node_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *CoreConfig) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *CoreConfig) GetConfig() []byte {
+	if x != nil {
+		return x.Config
+	}
+	return nil
+}
+
+func (x *CoreConfig) GetHash() string {
+	if x != nil {
+		return x.Hash
+	}
+	return ""
+}
+
 type Command struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	RequestId     string                 `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
@@ -1092,7 +1173,7 @@ type Command struct {
 
 func (x *Command) Reset() {
 	*x = Command{}
-	mi := &file_node_v1_node_proto_msgTypes[12]
+	mi := &file_node_v1_node_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1104,7 +1185,7 @@ func (x *Command) String() string {
 func (*Command) ProtoMessage() {}
 
 func (x *Command) ProtoReflect() protoreflect.Message {
-	mi := &file_node_v1_node_proto_msgTypes[12]
+	mi := &file_node_v1_node_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1117,7 +1198,7 @@ func (x *Command) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Command.ProtoReflect.Descriptor instead.
 func (*Command) Descriptor() ([]byte, []int) {
-	return file_node_v1_node_proto_rawDescGZIP(), []int{12}
+	return file_node_v1_node_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *Command) GetRequestId() string {
@@ -1221,7 +1302,7 @@ const file_node_v1_node_proto_rawDesc = "" +
 	"\x05error\x18\x02 \x01(\tR\x05error\x12\x1b\n" +
 	"\tnode_name\x18\x03 \x01(\tR\bnodeName\x12<\n" +
 	"\x1aheartbeat_interval_seconds\x18\x04 \x01(\rR\x18heartbeatIntervalSeconds\x124\n" +
-	"\x16usage_interval_seconds\x18\x05 \x01(\rR\x14usageIntervalSeconds\"\x93\x01\n" +
+	"\x16usage_interval_seconds\x18\x05 \x01(\rR\x14usageIntervalSeconds\"\xbe\x01\n" +
 	"\vApplyConfig\x12\x1d\n" +
 	"\n" +
 	"request_id\x18\x01 \x01(\tR\trequestId\x12\x1f\n" +
@@ -1229,7 +1310,13 @@ const file_node_v1_node_proto_rawDesc = "" +
 	"xrayConfig\x12\x1f\n" +
 	"\vconfig_hash\x18\x03 \x01(\tR\n" +
 	"configHash\x12#\n" +
-	"\rforce_restart\x18\x04 \x01(\bR\fforceRestart\"\xf3\x01\n" +
+	"\rforce_restart\x18\x04 \x01(\bR\fforceRestart\x12)\n" +
+	"\x05cores\x18\x05 \x03(\v2\x13.node.v1.CoreConfigR\x05cores\"L\n" +
+	"\n" +
+	"CoreConfig\x12\x12\n" +
+	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x16\n" +
+	"\x06config\x18\x02 \x01(\fR\x06config\x12\x12\n" +
+	"\x04hash\x18\x03 \x01(\tR\x04hash\"\xf3\x01\n" +
 	"\aCommand\x12\x1d\n" +
 	"\n" +
 	"request_id\x18\x01 \x01(\tR\trequestId\x12)\n" +
@@ -1258,7 +1345,7 @@ func file_node_v1_node_proto_rawDescGZIP() []byte {
 }
 
 var file_node_v1_node_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_node_v1_node_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_node_v1_node_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_node_v1_node_proto_goTypes = []any{
 	(Command_Kind)(0),    // 0: node.v1.Command.Kind
 	(*AgentMessage)(nil), // 1: node.v1.AgentMessage
@@ -1273,7 +1360,8 @@ var file_node_v1_node_proto_goTypes = []any{
 	(*LogChunk)(nil),     // 10: node.v1.LogChunk
 	(*HelloAck)(nil),     // 11: node.v1.HelloAck
 	(*ApplyConfig)(nil),  // 12: node.v1.ApplyConfig
-	(*Command)(nil),      // 13: node.v1.Command
+	(*CoreConfig)(nil),   // 13: node.v1.CoreConfig
+	(*Command)(nil),      // 14: node.v1.Command
 }
 var file_node_v1_node_proto_depIdxs = []int32{
 	3,  // 0: node.v1.AgentMessage.hello:type_name -> node.v1.Hello
@@ -1283,18 +1371,19 @@ var file_node_v1_node_proto_depIdxs = []int32{
 	10, // 4: node.v1.AgentMessage.logs:type_name -> node.v1.LogChunk
 	11, // 5: node.v1.PanelMessage.hello_ack:type_name -> node.v1.HelloAck
 	12, // 6: node.v1.PanelMessage.apply_config:type_name -> node.v1.ApplyConfig
-	13, // 7: node.v1.PanelMessage.command:type_name -> node.v1.Command
+	14, // 7: node.v1.PanelMessage.command:type_name -> node.v1.Command
 	4,  // 8: node.v1.Hello.system:type_name -> node.v1.SystemInfo
 	8,  // 9: node.v1.UsageReport.users:type_name -> node.v1.UserUsage
 	9,  // 10: node.v1.UsageReport.inbounds:type_name -> node.v1.InboundUsage
-	0,  // 11: node.v1.Command.kind:type_name -> node.v1.Command.Kind
-	1,  // 12: node.v1.NodeControl.Connect:input_type -> node.v1.AgentMessage
-	2,  // 13: node.v1.NodeControl.Connect:output_type -> node.v1.PanelMessage
-	13, // [13:14] is the sub-list for method output_type
-	12, // [12:13] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	13, // 11: node.v1.ApplyConfig.cores:type_name -> node.v1.CoreConfig
+	0,  // 12: node.v1.Command.kind:type_name -> node.v1.Command.Kind
+	1,  // 13: node.v1.NodeControl.Connect:input_type -> node.v1.AgentMessage
+	2,  // 14: node.v1.NodeControl.Connect:output_type -> node.v1.PanelMessage
+	14, // [14:15] is the sub-list for method output_type
+	13, // [13:14] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_node_v1_node_proto_init() }
@@ -1320,7 +1409,7 @@ func file_node_v1_node_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_node_v1_node_proto_rawDesc), len(file_node_v1_node_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   13,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

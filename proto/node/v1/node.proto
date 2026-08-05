@@ -114,10 +114,30 @@ message HelloAck {
 message ApplyConfig {
   string request_id = 1;
   // Full xray-core configuration document, JSON encoded.
+  //
+  // Kept as its own field rather than folded into `cores` so an agent built
+  // before multi-core support keeps working unchanged: it reads this and
+  // ignores what it does not know. A panel talking to such an agent still gets
+  // a working xray node.
   bytes xray_config = 2;
   string config_hash = 3;
-  // Restart xray even when the hash did not change.
+  // Restart the cores even when the hash did not change.
   bool force_restart = 4;
+  // Every core this node should run. An agent that understands this field uses
+  // it and ignores xray_config, which the panel also fills for the older ones.
+  repeated CoreConfig cores = 5;
+}
+
+// CoreConfig is one proxy engine the node supervises.
+message CoreConfig {
+  // "xray" or "hysteria2". A kind the agent does not recognise is skipped with
+  // a reported error rather than guessed at — running the wrong binary on a
+  // document is worse than not running it.
+  string kind = 1;
+  // The rendered document, exactly as it should be written to disk.
+  bytes config = 2;
+  // Hash of `config`, so the agent can skip a restart that changes nothing.
+  string hash = 3;
 }
 
 message Command {

@@ -100,8 +100,9 @@ type Agent struct {
 	// ServerName overrides the TLS SNI when the panel sits behind a proxy.
 	ServerName string
 
-	XrayBinary  string
-	XrayWorkDir string
+	XrayBinary     string
+	HysteriaBinary string
+	XrayWorkDir    string
 	// XrayAPIAddr is the local address of the xray stats API injected into the
 	// generated configuration.
 	XrayAPIAddr string
@@ -111,15 +112,16 @@ type Agent struct {
 
 func LoadAgent() (*Agent, error) {
 	a := &Agent{
-		PanelAddr:   env("PANEL_GRPC_ADDR", ""),
-		NodeUUID:    env("NODE_UUID", ""),
-		Token:       env("NODE_TOKEN", ""),
-		Insecure:    envBool("PANEL_GRPC_INSECURE", true),
-		ServerName:  env("PANEL_GRPC_SERVER_NAME", ""),
-		XrayBinary:  env("XRAY_BINARY", "/usr/local/bin/xray"),
-		XrayWorkDir: env("XRAY_WORKDIR", "/var/lib/amneziax-node"),
-		XrayAPIAddr: env("XRAY_API_ADDR", "127.0.0.1:10085"),
-		LogLevel:    env("LOG_LEVEL", "info"),
+		PanelAddr:      env("PANEL_GRPC_ADDR", ""),
+		NodeUUID:       env("NODE_UUID", ""),
+		Token:          env("NODE_TOKEN", ""),
+		Insecure:       envBool("PANEL_GRPC_INSECURE", true),
+		ServerName:     env("PANEL_GRPC_SERVER_NAME", ""),
+		XrayBinary:     env("XRAY_BINARY", "/usr/local/bin/xray"),
+		HysteriaBinary: env("HYSTERIA_BINARY", "/usr/local/bin/hysteria"),
+		XrayWorkDir:    env("XRAY_WORKDIR", "/var/lib/amneziax-node"),
+		XrayAPIAddr:    env("XRAY_API_ADDR", "127.0.0.1:10085"),
+		LogLevel:       env("LOG_LEVEL", "info"),
 	}
 	if a.PanelAddr == "" {
 		return nil, fmt.Errorf("PANEL_GRPC_ADDR is required")
