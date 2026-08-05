@@ -185,7 +185,7 @@ func bootstrap(ctx context.Context, store *postgres.Store, cfg *config.Panel, lo
 		if err != nil {
 			return err
 		}
-		profile, err := store.CreateProfile(ctx, "Default REALITY", raw, inbounds)
+		profile, err := store.CreateProfile(ctx, "Default REALITY", domain.ProfileXray, raw, inbounds)
 		if err != nil {
 			return err
 		}

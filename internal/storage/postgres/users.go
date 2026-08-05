@@ -445,3 +445,46 @@ func (s *Store) SetWireGuardKeys(ctx context.Context, id, private, public string
 		 WHERE uuid = $1 AND wg_public_key = ''`, id, private, public)
 	return mapErr(err)
 }
+
+// UsersForProfile returns every active user reachable through any squad that
+// grants an inbound of this profile.
+//
+// It is deliberately not UsersForNode: that one pairs a user with an inbound
+// tag, because xray injects clients per inbound. Hysteria2 has no inbounds —
+// there is one server and one user list — so the tag would be noise, and
+// worse, a user in two of the profile's squads would appear twice.
+
+// qualifiedUserColumns is userColumns with every name prefixed by the users
+// alias. Unqualified names are ambiguous the moment the query joins a table
+// that also has a `uuid`, and that failure only shows up at runtime.
+var qualifiedUserColumns = func() string {
+	parts := strings.Split(strings.ReplaceAll(userColumns, "\n\t", " "), ",")
+	for i, p := range parts {
+		parts[i] = "u." + strings.TrimSpace(p)
+	}
+	return strings.Join(parts, ", ")
+}()
+
+func (s *Store) UsersForProfile(ctx context.Context, profileID string) ([]domain.User, error) {
+	rows, err := s.pool.Query(ctx, `SELECT DISTINCT ON (u.uuid) `+qualifiedUserColumns+`
+		FROM users u
+		JOIN user_squads us ON us.user_uuid = u.uuid
+		JOIN squad_inbounds si ON si.squad_uuid = us.squad_uuid
+		JOIN config_profile_inbounds i ON i.uuid = si.inbound_uuid
+		WHERE u.status = 'ACTIVE' AND i.config_profile_uuid = $1
+		ORDER BY u.uuid`, profileID)
+	if err != nil {
+		return nil, mapErr(err)
+	}
+	defer rows.Close()
+
+	out := []domain.User{}
+	for rows.Next() {
+		u, err := scanUser(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, *u)
+	}
+	return out, mapErr(rows.Err())
+}

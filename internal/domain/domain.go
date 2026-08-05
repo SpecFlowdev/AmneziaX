@@ -51,9 +51,28 @@ type Admin struct {
 
 // ConfigProfile is a reusable xray-core configuration document. Nodes are bound
 // to exactly one profile and serve a subset of its inbounds.
+// ProfileKind names the engine a profile's document is written for.
+type ProfileKind string
+
+const (
+	ProfileXray      ProfileKind = "xray"
+	ProfileHysteria2 ProfileKind = "hysteria2"
+)
+
+func (k ProfileKind) Valid() bool {
+	switch k {
+	case ProfileXray, ProfileHysteria2:
+		return true
+	}
+	return false
+}
+
 type ConfigProfile struct {
-	UUID      string          `json:"uuid"`
-	Name      string          `json:"name"`
+	UUID string `json:"uuid"`
+	Name string `json:"name"`
+	// Kind decides which engine validates and renders this document. Empty
+	// reads as xray, so every profile written before this existed is correct.
+	Kind      ProfileKind     `json:"kind"`
 	Config    json.RawMessage `json:"config"`
 	CreatedAt time.Time       `json:"createdAt"`
 	UpdatedAt time.Time       `json:"updatedAt"`

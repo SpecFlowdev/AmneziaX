@@ -249,7 +249,14 @@ func (a *Agent) applyConfig(ctx context.Context, cmd *nodev1.ApplyConfig, outbox
 	}
 
 	a.log.Info("applying configuration from the panel", "hash", hash, "bytes", len(cmd.GetXrayConfig()))
-	err := a.xray.Apply(ctx, cmd.GetXrayConfig(), hash)
+
+	// An empty xray document means this node does not run xray at all — its
+	// profile is written for another engine. Applying the empty document would
+	// stop a perfectly good xray for no reason on the way through.
+	var err error
+	if len(cmd.GetXrayConfig()) > 0 {
+		err = a.xray.Apply(ctx, cmd.GetXrayConfig(), hash)
+	}
 
 	// Any further cores the panel asked for. A failure here is reported but
 	// does not undo xray: a node serving four working protocols and one broken

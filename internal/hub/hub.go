@@ -10,9 +10,14 @@ import (
 	"sync"
 	"time"
 
+	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	nodev1 "github.com/SpecFlowdev/AmneziaX/gen/go/node/v1"
 	"github.com/SpecFlowdev/AmneziaX/internal/config"
+
 	"github.com/SpecFlowdev/AmneziaX/internal/domain"
+	"github.com/SpecFlowdev/AmneziaX/internal/hysteria"
 	"github.com/SpecFlowdev/AmneziaX/internal/storage/postgres"
 	"github.com/SpecFlowdev/AmneziaX/internal/xray"
 	"github.com/google/uuid"
@@ -240,11 +245,37 @@ func (h *Hub) SyncNode(ctx context.Context, nodeID string, force bool) error {
 		return h.stopNode(ctx, node)
 	}
 
-	payload, hash, err := h.BuildNodeConfig(ctx, node)
+	// A node whose profile is not an xray document has no xray config to send.
+	// Rendering one would fail on "no inbounds", which is true and useless.
+	var payload []byte
+	var hash string
+	xrayNode, err := h.nodeRunsXray(ctx, node)
 	if err != nil {
 		_ = h.store.SetNodeHealth(ctx, node.UUID, domain.NodeHealthDegraded, err.Error())
 		return err
 	}
+	if xrayNode {
+		payload, hash, err = h.BuildNodeConfig(ctx, node)
+		if err != nil {
+			_ = h.store.SetNodeHealth(ctx, node.UUID, domain.NodeHealthDegraded, err.Error())
+			return err
+		}
+	}
+
+	// Any engine beyond xray this node should also run. A failure to render one
+	// is reported but does not block the xray push: a node serving most of what
+	// it should beats a node serving none of it.
+	cores, coreHash, cerr := h.buildExtraCores(ctx, node)
+	if cerr != nil {
+		h.log.Warn("could not render an additional core", "node", node.Name, "error", cerr)
+	}
+	// The hash the node compares against has to cover every core, otherwise a
+	// change to the hysteria document alone would look like "nothing changed".
+	if coreHash != "" {
+		sum := sha256.Sum256([]byte(hash + coreHash))
+		hash = hex.EncodeToString(sum[:])
+	}
+
 	if !force && hash == node.ConfigHash {
 		return nil
 	}
@@ -253,6 +284,7 @@ func (h *Hub) SyncNode(ctx context.Context, nodeID string, force bool) error {
 		ApplyConfig: &nodev1.ApplyConfig{
 			RequestId:    uuid.NewString(),
 			XrayConfig:   payload,
+			Cores:        cores,
 			ConfigHash:   hash,
 			ForceRestart: force,
 		},
@@ -337,11 +369,38 @@ func (h *Hub) PreviewNodeConfig(ctx context.Context, nodeID string) (json.RawMes
 	if err != nil {
 		return nil, err
 	}
+
+	// A node whose profile is a hysteria2 document has no xray config to show.
+	// Showing the error from rendering one would be technically true and
+	// completely unhelpful — the operator wants to see what the node runs.
+	xrayNode, err := h.nodeRunsXray(ctx, node)
+	if err != nil {
+		return nil, err
+	}
+	if !xrayNode {
+		cores, _, err := h.buildExtraCores(ctx, node)
+		if err != nil {
+			return nil, err
+		}
+		if len(cores) == 0 {
+			return nil, fmt.Errorf("nothing to render for this node")
+		}
+		var pretty bytes.Buffer
+		if err := json.Indent(&pretty, cores[0].GetConfig(), "", "  "); err != nil {
+			return cores[0].GetConfig(), nil
+		}
+		return pretty.Bytes(), nil
+	}
+
 	payload, _, err := h.BuildNodeConfig(ctx, node)
 	if err != nil {
 		return nil, err
 	}
-	return payload, nil
+	var pretty bytes.Buffer
+	if err := json.Indent(&pretty, payload, "", "  "); err != nil {
+		return payload, nil
+	}
+	return pretty.Bytes(), nil
 }
 
 // ---------------------------------------------------------------- commands
@@ -406,4 +465,63 @@ func short(s string) string {
 		return s[:12]
 	}
 	return s
+}
+
+// buildExtraCores renders every engine this node runs besides xray.
+//
+// A node is bound to one profile, so today that means: if the profile is a
+// hysteria2 document, the node runs hysteria2 instead of xray. The list shape
+// is what makes running both at once a change of data rather than a change of
+// contract.
+func (h *Hub) buildExtraCores(ctx context.Context, node *domain.Node) ([]*nodev1.CoreConfig, string, error) {
+	if node.ConfigProfileID == nil || *node.ConfigProfileID == "" {
+		return nil, "", nil
+	}
+	profile, err := h.store.Profile(ctx, *node.ConfigProfileID)
+	if err != nil {
+		return nil, "", err
+	}
+	if profile.Kind != domain.ProfileHysteria2 {
+		return nil, "", nil
+	}
+
+	users, err := h.store.UsersForProfile(ctx, profile.UUID)
+	if err != nil {
+		return nil, "", err
+	}
+	list := make([]hysteria.User, 0, len(users))
+	for i := range users {
+		u := &users[i]
+		list = append(list, hysteria.User{
+			Name: hysteria.AuthKey(u.UUID, u.Username),
+			// Hysteria authenticates with a single password, and the trojan
+			// one is already a per-user secret that rotates when the user is
+			// revoked — so revoking still cuts hysteria access off too.
+			Password: u.TrojanPassword,
+		})
+	}
+
+	payload, hash, err := hysteria.Render(profile.Config, hysteria.RenderOptions{Users: list})
+	if err != nil {
+		return nil, "", err
+	}
+	return []*nodev1.CoreConfig{{
+		Kind:   string(domain.ProfileHysteria2),
+		Config: payload,
+		Hash:   hash,
+	}}, hash, nil
+}
+
+// nodeRunsXray reports whether this node's profile is an xray document. Only
+// the profile decides — a node does not choose an engine, it runs whatever its
+// profile is written for.
+func (h *Hub) nodeRunsXray(ctx context.Context, node *domain.Node) (bool, error) {
+	if node.ConfigProfileID == nil || *node.ConfigProfileID == "" {
+		return false, fmt.Errorf("node has no configuration profile assigned")
+	}
+	profile, err := h.store.Profile(ctx, *node.ConfigProfileID)
+	if err != nil {
+		return false, err
+	}
+	return profile.Kind != domain.ProfileHysteria2, nil
 }

@@ -3,16 +3,71 @@ package httpapi
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/SpecFlowdev/AmneziaX/internal/domain"
+	"github.com/SpecFlowdev/AmneziaX/internal/hysteria"
 	"github.com/SpecFlowdev/AmneziaX/internal/xray"
 	"github.com/go-chi/chi/v5"
 )
 
 type profileRequest struct {
-	Name   string          `json:"name"`
-	Config json.RawMessage `json:"config"`
+	Name string `json:"name"`
+	// Kind names the engine this document is for. Empty means xray, so a
+	// client written before this field existed keeps working.
+	Kind   domain.ProfileKind `json:"kind"`
+	Config json.RawMessage    `json:"config"`
+}
+
+func (r profileRequest) kind() domain.ProfileKind {
+	if r.Kind == "" {
+		return domain.ProfileXray
+	}
+	return r.Kind
+}
+
+// profileInbounds is what squads and hosts attach to.
+//
+// An xray document has real inbounds. A hysteria2 document has none — there is
+// one server and one user list — so one is synthesised for it. That is what
+// keeps the access model identical: a squad grants an inbound, whichever engine
+// happens to be behind it, rather than hysteria needing its own parallel way of
+// saying who may connect.
+func profileInbounds(kind domain.ProfileKind, config json.RawMessage) ([]domain.ConfigProfileInbound, error) {
+	if kind == domain.ProfileHysteria2 {
+		port := 0
+		var doc struct {
+			Listen string `json:"listen"`
+		}
+		if err := json.Unmarshal(config, &doc); err == nil {
+			if idx := strings.LastIndex(doc.Listen, ":"); idx >= 0 {
+				port, _ = strconv.Atoi(doc.Listen[idx+1:])
+			}
+		}
+		return []domain.ConfigProfileInbound{{
+			Tag:      "hysteria2",
+			Type:     "hysteria2",
+			Network:  "udp",
+			Security: "tls",
+			Port:     port,
+		}}, nil
+	}
+	return xray.ParseInbounds(config)
+}
+
+// validateProfile sends the document to the rules of the engine that will
+// actually run it. Validating a hysteria2 config against xray's rules would
+// reject every valid one.
+func validateProfile(kind domain.ProfileKind, config json.RawMessage) error {
+	switch kind {
+	case domain.ProfileHysteria2:
+		return hysteria.Validate(config)
+	case domain.ProfileXray, "":
+		return xray.Validate(config)
+	default:
+		return errBadRequest("unknown profile kind " + string(kind))
+	}
 }
 
 func (a *API) listProfiles(w http.ResponseWriter, r *http.Request) {
@@ -62,16 +117,16 @@ func (a *API) createProfile(w http.ResponseWriter, r *http.Request) {
 		}
 		req.Config = generated
 	}
-	if err := xray.Validate(req.Config); err != nil {
+	if err := validateProfile(req.kind(), req.Config); err != nil {
 		writeErr(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	inbounds, err := xray.ParseInbounds(req.Config)
+	inbounds, err := profileInbounds(req.kind(), req.Config)
 	if err != nil {
 		writeErr(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	profile, err := a.store.CreateProfile(r.Context(), req.Name, req.Config, inbounds)
+	profile, err := a.store.CreateProfile(r.Context(), req.Name, req.kind(), req.Config, inbounds)
 	if err != nil {
 		a.storeErr(w, err)
 		return
@@ -91,16 +146,16 @@ func (a *API) updateProfile(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, "a profile name is required")
 		return
 	}
-	if err := xray.Validate(req.Config); err != nil {
+	if err := validateProfile(req.kind(), req.Config); err != nil {
 		writeErr(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	inbounds, err := xray.ParseInbounds(req.Config)
+	inbounds, err := profileInbounds(req.kind(), req.Config)
 	if err != nil {
 		writeErr(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	profile, err := a.store.UpdateProfile(r.Context(), id, strings.TrimSpace(req.Name), req.Config, inbounds)
+	profile, err := a.store.UpdateProfile(r.Context(), id, strings.TrimSpace(req.Name), req.kind(), req.Config, inbounds)
 	if err != nil {
 		a.storeErr(w, err)
 		return

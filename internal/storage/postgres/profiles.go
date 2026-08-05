@@ -8,7 +8,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func (s *Store) CreateProfile(ctx context.Context, name string, config json.RawMessage, inbounds []domain.ConfigProfileInbound) (*domain.ConfigProfile, error) {
+func (s *Store) CreateProfile(ctx context.Context, name string, kind domain.ProfileKind, config json.RawMessage, inbounds []domain.ConfigProfileInbound) (*domain.ConfigProfile, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return nil, mapErr(err)
@@ -17,9 +17,9 @@ func (s *Store) CreateProfile(ctx context.Context, name string, config json.RawM
 
 	id := uuid.NewString()
 	var p domain.ConfigProfile
-	row := tx.QueryRow(ctx, `INSERT INTO config_profiles (uuid, name, config) VALUES ($1, $2, $3)
-		RETURNING uuid, name, config, created_at, updated_at`, id, name, config)
-	if err := row.Scan(&p.UUID, &p.Name, &p.Config, &p.CreatedAt, &p.UpdatedAt); err != nil {
+	row := tx.QueryRow(ctx, `INSERT INTO config_profiles (uuid, name, config, kind) VALUES ($1, $2, $3, $4)
+		RETURNING uuid, name, config, kind, created_at, updated_at`, id, name, config, kind)
+	if err := row.Scan(&p.UUID, &p.Name, &p.Config, &p.Kind, &p.CreatedAt, &p.UpdatedAt); err != nil {
 		return nil, mapErr(err)
 	}
 	for _, in := range inbounds {
@@ -42,7 +42,7 @@ func (s *Store) CreateProfile(ctx context.Context, name string, config json.RawM
 // UpdateProfile rewrites the document and reconciles the extracted inbound rows.
 // Inbounds are matched by tag so hosts and squads keep pointing at the same
 // inbound identity across edits.
-func (s *Store) UpdateProfile(ctx context.Context, id, name string, config json.RawMessage, inbounds []domain.ConfigProfileInbound) (*domain.ConfigProfile, error) {
+func (s *Store) UpdateProfile(ctx context.Context, id, name string, kind domain.ProfileKind, config json.RawMessage, inbounds []domain.ConfigProfileInbound) (*domain.ConfigProfile, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return nil, mapErr(err)
@@ -50,9 +50,9 @@ func (s *Store) UpdateProfile(ctx context.Context, id, name string, config json.
 	defer func() { _ = tx.Rollback(ctx) }()
 
 	var p domain.ConfigProfile
-	row := tx.QueryRow(ctx, `UPDATE config_profiles SET name = $2, config = $3, updated_at = NOW()
-		WHERE uuid = $1 RETURNING uuid, name, config, created_at, updated_at`, id, name, config)
-	if err := row.Scan(&p.UUID, &p.Name, &p.Config, &p.CreatedAt, &p.UpdatedAt); err != nil {
+	row := tx.QueryRow(ctx, `UPDATE config_profiles SET name = $2, config = $3, kind = $4, updated_at = NOW()
+		WHERE uuid = $1 RETURNING uuid, name, config, kind, created_at, updated_at`, id, name, config, kind)
+	if err := row.Scan(&p.UUID, &p.Name, &p.Config, &p.Kind, &p.CreatedAt, &p.UpdatedAt); err != nil {
 		return nil, mapErr(err)
 	}
 
@@ -82,8 +82,8 @@ func (s *Store) UpdateProfile(ctx context.Context, id, name string, config json.
 
 func (s *Store) Profile(ctx context.Context, id string) (*domain.ConfigProfile, error) {
 	var p domain.ConfigProfile
-	row := s.pool.QueryRow(ctx, `SELECT uuid, name, config, created_at, updated_at FROM config_profiles WHERE uuid = $1`, id)
-	if err := row.Scan(&p.UUID, &p.Name, &p.Config, &p.CreatedAt, &p.UpdatedAt); err != nil {
+	row := s.pool.QueryRow(ctx, `SELECT uuid, name, config, kind, created_at, updated_at FROM config_profiles WHERE uuid = $1`, id)
+	if err := row.Scan(&p.UUID, &p.Name, &p.Config, &p.Kind, &p.CreatedAt, &p.UpdatedAt); err != nil {
 		return nil, mapErr(err)
 	}
 	var err error
@@ -97,7 +97,7 @@ func (s *Store) Profile(ctx context.Context, id string) (*domain.ConfigProfile, 
 }
 
 func (s *Store) ListProfiles(ctx context.Context) ([]domain.ConfigProfile, error) {
-	rows, err := s.pool.Query(ctx, `SELECT uuid, name, config, created_at, updated_at FROM config_profiles ORDER BY created_at`)
+	rows, err := s.pool.Query(ctx, `SELECT uuid, name, config, kind, created_at, updated_at FROM config_profiles ORDER BY created_at`)
 	if err != nil {
 		return nil, mapErr(err)
 	}
@@ -106,7 +106,7 @@ func (s *Store) ListProfiles(ctx context.Context) ([]domain.ConfigProfile, error
 	out := []domain.ConfigProfile{}
 	for rows.Next() {
 		var p domain.ConfigProfile
-		if err := rows.Scan(&p.UUID, &p.Name, &p.Config, &p.CreatedAt, &p.UpdatedAt); err != nil {
+		if err := rows.Scan(&p.UUID, &p.Name, &p.Config, &p.Kind, &p.CreatedAt, &p.UpdatedAt); err != nil {
 			return nil, mapErr(err)
 		}
 		out = append(out, p)
