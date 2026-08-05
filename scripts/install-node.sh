@@ -156,6 +156,37 @@ else
   install -m 0644 "$tmp/xray/geoip.dat" "$tmp/xray/geosite.dat" /usr/local/share/xray/
 fi
 
+# ------------------------------------------------------------------ hysteria2
+
+# A second engine, for nodes whose profile is a hysteria2 document. It is a
+# single static binary, so installing it costs a download and nothing else — and
+# a node that never serves hysteria2 simply never starts it.
+#
+# A failure here is a warning rather than a fatal: hysteria2 is optional, and a
+# node that cannot fetch it is still a perfectly good xray node.
+if [[ -x "$BIN_DIR/hysteria" ]]; then
+  info "hysteria2 already installed"
+else
+  case "$(uname -m)" in
+    x86_64|amd64) hy_asset="hysteria-linux-amd64" ;;
+    aarch64|arm64) hy_asset="hysteria-linux-arm64" ;;
+    *) hy_asset="" ;;
+  esac
+  if [[ -z "$hy_asset" ]]; then
+    warn "no hysteria2 build for $(uname -m); this node will serve xray only"
+  else
+    info "installing hysteria2"
+    if curl -fsSL -o "$BIN_DIR/hysteria.new" \
+      "https://github.com/apernet/hysteria/releases/latest/download/${hy_asset}"; then
+      chmod 0755 "$BIN_DIR/hysteria.new"
+      mv "$BIN_DIR/hysteria.new" "$BIN_DIR/hysteria"
+    else
+      rm -f "$BIN_DIR/hysteria.new"
+      warn "could not download hysteria2; this node will serve xray only"
+    fi
+  fi
+fi
+
 # ---------------------------------------------------------------- agent
 
 info "installing the AmneziaX agent"

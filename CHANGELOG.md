@@ -10,6 +10,36 @@ that follows the stable channel.
 
 ## [Unreleased]
 
+## [0.11.0] — 2026-08-05
+
+### Added
+
+- **Hysteria2 as a second engine.** A profile now names which engine its
+  document is written for, and a node bound to a hysteria2 profile runs
+  hysteria2 with its real subscribers in it. The node installer fetches the
+  binary; a node that cannot get it stays a perfectly good xray node and says
+  so rather than failing the install.
+  **Existing nodes need re-running the installer** — the second binary and the
+  agent that supervises it do not arrive on their own.
+  Three things only surfaced by testing against the real binary and a real
+  database, each of which would otherwise have failed quietly:
+  hysteria parses its config with a decoder that reads a dot as nesting, so the
+  `<uuid>.<username>` identity xray uses makes the server refuse to start —
+  the key is uuid, underscore, sanitised username, with the uuid still
+  recoverable so traffic can be charged back;
+  a hysteria2 document has no inbounds while squads grant access *through*
+  inbounds, so such a profile exposes one synthesised inbound and the access
+  model stays exactly as it was for every other protocol;
+  and a node whose profile is not xray has no xray document at all, so that
+  render is skipped and the agent ignores an empty one instead of stopping a
+  healthy process.
+  Authentication reuses the subscriber's existing trojan password rather than
+  minting a third secret, so revoking a user still cuts off hysteria2 with
+  everything else. An unknown core kind is refused rather than handed to a
+  binary chosen by guesswork, and a push carrying no hysteria core stops one
+  that is running.
+
+
 ## [0.10.1] — 2026-08-05
 
 ### Changed
