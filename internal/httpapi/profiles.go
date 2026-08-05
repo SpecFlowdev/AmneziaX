@@ -219,6 +219,60 @@ func (a *API) realityKeys(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// starterTemplate hands the UI a document that already runs, for whichever
+// engine the operator picked. A blank textarea is the wrong starting point for
+// a hysteria2 or sing-box profile: their shapes share nothing with xray's, so
+// an operator would be writing one from memory against a validator they cannot
+// see. The generated document is only a starting point — it is returned, not
+// stored, and everything in it stays editable.
+func (a *API) starterTemplate(w http.ResponseWriter, r *http.Request) {
+	kind := domain.ProfileKind(strings.TrimSpace(r.URL.Query().Get("kind")))
+	if kind == "" {
+		kind = domain.ProfileXray
+	}
+	host := sanitiseHostname(r.URL.Query().Get("domain"))
+
+	var config json.RawMessage
+	switch kind {
+	case domain.ProfileHysteria2:
+		config = hysteria.Starter(host)
+	case domain.ProfileSingBox:
+		config = singbox.Starter(host)
+	case domain.ProfileXray:
+		// REALITY borrows somebody else's name on the wire, so the operator's
+		// own domain is deliberately not used here.
+		generated, err := xray.DefaultTemplate(xray.TemplateOptions{})
+		if err != nil {
+			a.storeErr(w, err)
+			return
+		}
+		config = generated
+	default:
+		writeErr(w, http.StatusBadRequest, "unknown profile kind "+string(kind))
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"kind": kind, "config": config})
+}
+
+// sanitiseHostname keeps what a domain name may contain and drops the rest, so
+// a value typed into the browser cannot reshape the document it is placed in.
+func sanitiseHostname(s string) string {
+	s = strings.ToLower(strings.TrimSpace(s))
+	if len(s) > 253 {
+		return ""
+	}
+	var b strings.Builder
+	for _, r := range s {
+		switch {
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9', r == '.', r == '-':
+			b.WriteRune(r)
+		default:
+			return ""
+		}
+	}
+	return b.String()
+}
+
 type wireguardKeysRequest struct {
 	// Given a private key, the answer is its public half. Left empty, a fresh
 	// pair is generated instead.

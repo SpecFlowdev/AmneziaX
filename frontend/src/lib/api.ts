@@ -86,9 +86,16 @@ export interface Inbound {
   port: number
 }
 
+// ProfileKind names the engine a profile's document is written for. An older
+// profile has no kind stored and reads back as xray.
+export type ProfileKind = 'xray' | 'hysteria2' | 'singbox'
+
+export const profileKinds: ProfileKind[] = ['xray', 'hysteria2', 'singbox']
+
 export interface ConfigProfile {
   uuid: string
   name: string
+  kind: ProfileKind
   config: unknown
   createdAt: string
   updatedAt: string

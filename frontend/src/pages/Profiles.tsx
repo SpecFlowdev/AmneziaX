@@ -11,7 +11,7 @@ import {
   useToast,
 } from '../components/ui'
 import { useI18n } from '../i18n'
-import { api, type ConfigProfile } from '../lib/api'
+import { api, profileKinds, type ConfigProfile, type ProfileKind } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { dateTime } from '../lib/format'
 import { useFetch } from '../lib/useApi'
@@ -70,6 +70,7 @@ export function Profiles() {
               <div className="card-head">
                 <Icon name="code" size={17} />
                 <h3>{p.name}</h3>
+                <span className="pill">{t.profiles.kinds[p.kind ?? 'xray']}</span>
                 <div className="spacer" />
                 <span className="small dim">{dateTime(p.updatedAt, lang)}</span>
               </div>
@@ -196,9 +197,15 @@ function ProfileEditor({
   const { push } = useToast()
   const [busy, setBusy] = useState(false)
   const [name, setName] = useState(profile?.name ?? '')
+  const [kind, setKind] = useState<ProfileKind>(profile?.kind ?? 'xray')
+  const [domain, setDomain] = useState('')
   const [text, setText] = useState(() =>
     profile ? JSON.stringify(profile.config, null, 2) : '',
   )
+  // Filling the box is a two-click action once there is something in it: the
+  // starter replaces the whole document, and a single misplaced click should
+  // not throw away a config someone just typed.
+  const [confirmStarter, setConfirmStarter] = useState(false)
 
   function format() {
     try {
@@ -206,6 +213,20 @@ function ProfileEditor({
     } catch {
       push(t.profiles.invalidJson, 'error')
     }
+  }
+
+  async function loadStarter() {
+    if (text.trim() && !confirmStarter) {
+      setConfirmStarter(true)
+      return
+    }
+    setConfirmStarter(false)
+    await run(async () => {
+      const q = new URLSearchParams({ kind })
+      if (domain.trim()) q.set('domain', domain.trim())
+      const res = await api.get<{ config: unknown }>(`/api/profiles/tools/starter?${q}`)
+      setText(JSON.stringify(res.config, null, 2))
+    })
   }
 
   async function save() {
@@ -220,7 +241,7 @@ function ProfileEditor({
     }
     setBusy(true)
     await run(async () => {
-      const body = { name: name.trim(), config: parsed }
+      const body = { name: name.trim(), kind, config: parsed }
       if (profile) {
         await api.put(`/api/profiles/${profile.uuid}`, body)
         push(t.profiles.savedApplied, 'success')
@@ -239,6 +260,10 @@ function ProfileEditor({
       wide
       footer={
         <>
+          <button onClick={() => void loadStarter()}>
+            <Icon name="plus" size={14} />
+            {confirmStarter ? t.profiles.starterReplace : t.profiles.starter}
+          </button>
           <button onClick={format}>{t.profiles.format}</button>
           <div style={{ flex: 1 }} />
           <button onClick={onClose}>{t.common.cancel}</button>
@@ -249,10 +274,30 @@ function ProfileEditor({
         </>
       }
     >
-      <Field label={t.common.name}>
-        <input value={name} onChange={(e) => setName(e.target.value)} autoFocus />
-      </Field>
-      <Field label={t.profiles.config} hint={t.profiles.configHint}>
+      <div className="grid cols-2">
+        <Field label={t.common.name}>
+          <input value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+        </Field>
+        <Field label={t.profiles.kind} hint={t.profiles.kindHints[kind]}>
+          <select value={kind} onChange={(e) => setKind(e.target.value as ProfileKind)}>
+            {profileKinds.map((k) => (
+              <option key={k} value={k}>
+                {t.profiles.kinds[k]}
+              </option>
+            ))}
+          </select>
+        </Field>
+      </div>
+      {kind !== 'xray' && (
+        <Field label={t.profiles.starterDomain} hint={t.profiles.starterDomainHint}>
+          <input
+            value={domain}
+            placeholder="example.com"
+            onChange={(e) => setDomain(e.target.value)}
+          />
+        </Field>
+      )}
+      <Field label={t.profiles.config} hint={t.profiles.configHints[kind]}>
         <textarea
           rows={22}
           value={text}

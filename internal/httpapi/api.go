@@ -171,6 +171,9 @@ func (a *API) Router(ui http.Handler) http.Handler {
 				r.Get("/", a.listProfiles)
 				r.Get("/inbounds", a.listInbounds)
 				r.Post("/", a.writable(a.createProfile))
+				// A starting document for the engine the operator picked —
+				// generated, never stored, and editable before it is saved.
+				r.Get("/tools/starter", a.starterTemplate)
 				r.Post("/tools/reality-keys", a.writable(a.realityKeys))
 				// A WireGuard host has to name the server's *public* key,
 				// which an operator only has the private half of.

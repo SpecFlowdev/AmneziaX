@@ -41,7 +41,7 @@ install already contains a working VLESS + REALITY profile.
 | **One-command install** | `install-panel.sh` asks for your domain, brings up Postgres, the panel and Caddy, and gets a certificate; the panel then hands you a one-liner for each node. |
 | **HTTPS by default** | Caddy terminates TLS for the panel on 443 and for the node control stream on 9999, under one certificate. The panel binds no host port of its own. |
 | **Panel + node architecture** | Nodes dial *out* to the panel over gRPC, so they need no inbound management port and work behind NAT. |
-| **Config profiles** | Full Xray documents, edited as JSON, validated before they ever reach a server. |
+| **Config profiles** | Full Xray, hysteria2 or sing-box documents, edited as JSON, validated by the engine that will run them before they ever reach a server. Pick the engine and the panel fills the box with a starter document that already runs. |
 | **Squads** | Bundle inbounds and assign them to users in one move, across any number of nodes. |
 | **Hosts** | Publish one inbound behind many domains, ports, SNIs or CDNs, with per-user labels. |
 | **Live telemetry** | CPU, RAM, load, Xray uptime, online users and stacked traffic charts per node. |

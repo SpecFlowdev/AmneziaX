@@ -105,10 +105,11 @@ emitted as the subscribable events `USER_EXPIRING_SOON` and
 |---|---|---|
 | `GET` | `/api/profiles` | All profiles with their extracted inbounds. |
 | `GET` | `/api/profiles/inbounds?profileUuid=…` | Inbounds, optionally filtered. |
-| `POST` | `/api/profiles` | `{name, config}`. An empty `config` yields a working VLESS + REALITY starter. |
+| `POST` | `/api/profiles` | `{name, kind, config}`. An omitted `kind` means `xray`. An empty `config` yields a working VLESS + REALITY starter. |
 | `GET` | `/api/profiles/{uuid}` | One profile, including the nodes using it. |
 | `PUT` | `/api/profiles/{uuid}` | Validates, saves, and pushes to every bound node. |
 | `DELETE` | `/api/profiles/{uuid}` | `409` while any node still uses it. |
+| `GET` | `/api/profiles/tools/starter?kind=…&domain=…` | `{kind, config}` — a document for that engine that already runs, generated and returned rather than stored. `domain` fills the certificate request of a `hysteria2` or `singbox` starter; it is ignored for `xray`, whose REALITY block borrows somebody else's name on the wire. |
 | `POST` | `/api/profiles/tools/reality-keys` | `{privateKey, publicKey, shortIds}`. |
 | `POST` | `/api/profiles/tools/wireguard-keys` | A fresh server pair, or — given `{privateKey}` — the public half of one you already have. A WireGuard host must name the server's *public* key, and deriving it beats keeping the two halves straight by hand. |
 
@@ -122,7 +123,11 @@ whichever engine is behind it.
 A hysteria2 document has no inbounds of its own, so the panel synthesises one
 for it; that is what lets a squad grant it like anything else.
 
-The `config` field is a full Xray document. Validation requires at least one
+**Config profiles → New profile** picks the engine from a list and fills the box
+with that engine's starter document, so a hysteria2 or sing-box profile is made
+the same way an xray one is — nothing here needs the API.
+
+For `kind: xray`, the `config` field is a full Xray document. Validation requires at least one
 inbound and one outbound, a unique non-empty `tag` on every inbound, and rejects
 the reserved tag `amneziax-api`.
 

@@ -10,6 +10,34 @@ that follows the stable channel.
 
 ## [Unreleased]
 
+## [0.13.0] — 2026-08-05
+
+### Added
+
+- **Pick the engine when you create a profile.** The three engines shipped over
+  the last two releases could only be reached through the API: the profile
+  editor had no notion of `kind`, so hysteria2 and sing-box profiles were
+  creatable with `curl` and nowhere else. **Config profiles → New profile** now
+  carries an engine selector, and each card shows which engine its document
+  belongs to.
+- **A starter document per engine** (`GET /api/profiles/tools/starter`). An
+  empty textarea is a workable starting point for xray, whose starter has always
+  been generated for you, and a bad one for the other two — their document
+  shapes share nothing with xray's, so an operator would be writing one from
+  memory against a validator they cannot see. The button fills the box with a
+  document that already runs; giving a domain puts it in the certificate request
+  of that document. It replaces what is in the box, so it asks first when there
+  is something there to lose. The domain is generated into a document, so it is
+  accepted only if it looks like a hostname and is dropped whole otherwise.
+
+### Fixed
+
+- **Editing a non-xray profile in the panel no longer converts it to xray.** The
+  editor sent no `kind`, an omitted `kind` means xray for the sake of clients
+  written before the field existed, and so saving an untouched hysteria2 profile
+  from the UI failed validation against xray's rules. The editor now sends the
+  profile's own engine.
+
 ## [0.12.0] — 2026-08-05
 
 ### Added
